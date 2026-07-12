@@ -3,7 +3,9 @@ import { AppShell } from '@/components/layout/AppShell';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
-import { AdminsPage } from '@/pages/AdminsPage';
+import { MyProfilePage } from '@/pages/MyProfilePage';
+import { AdminListPage } from '@/pages/AdminListPage';
+import { CreateAdminPage } from '@/pages/CreateAdminPage';
 import { ClientsPage } from '@/pages/ClientsPage';
 import { FaqsPage } from '@/pages/FaqsPage';
 
@@ -22,7 +24,9 @@ export default function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="admins" element={<AdminsPage />} />
+          <Route path="admins/me" element={<MyProfilePage />} />
+          <Route path="admins/list" element={<AdminListPage />} />
+          <Route path="admins/create" element={<CreateAdminPage />} />
           <Route path="clients" element={<ClientsPage />} />
           <Route path="faqs" element={<FaqsPage />} />
         </Route>

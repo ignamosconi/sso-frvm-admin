@@ -5,7 +5,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash, IconEdit, IconAlertCircle } from '@tabler/icons-react';
 import { adminsApi } from '@/api/adminApi';
-import { AdminResponse, CreateAdminPayload, UpdateAdminPayload } from '@/types/api.types';
+import { AdminResponse, CreateAdminPayload } from '@/types/api.types';
 
 export function AdminsPage() {
   const [admins, setAdmins] = useState<AdminResponse[]>([]);
@@ -52,15 +52,8 @@ export function AdminsPage() {
     setFormError(null);
     setFormLoading(true);
     try {
-      if (editing) {
-        const payload: UpdateAdminPayload = {};
-        if (formUsername !== editing.username) payload.username = formUsername;
-        if (formPassword) payload.password = formPassword;
-        await adminsApi.update(editing.id, payload);
-      } else {
-        const payload: CreateAdminPayload = { username: formUsername, password: formPassword };
-        await adminsApi.create(payload);
-      }
+      const payload: CreateAdminPayload = { username: formUsername, password: formPassword };
+      await adminsApi.create(payload);
       setModalOpen(false);
       load();
     } catch (err: any) {

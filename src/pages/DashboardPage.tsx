@@ -1,33 +1,64 @@
-import { Card, Grid, Text, Title, Box, ThemeIcon, Group } from '@mantine/core';
-import { IconUsers, IconApps, IconShieldCheck } from '@tabler/icons-react';
-
-const stats = [
-  { label: 'Administradores', icon: IconUsers, description: 'Gestioná los admins del sistema' },
-  { label: 'Clientes OAuth', icon: IconApps, description: 'Apps registradas en el SSO' },
-  { label: 'SSO Activo', icon: IconShieldCheck, description: 'El servidor está funcionando' },
-];
+import { useEffect, useState } from 'react';
+import {
+  Box, Title, Text, Card, Group, ThemeIcon, Badge,
+} from '@mantine/core';
+import { IconShieldCheck, IconShieldX } from '@tabler/icons-react';
+import { healthApi } from '@/api/healthApi';
 
 export function DashboardPage() {
+  const [status, setStatus] = useState<'checking' | 'up' | 'down'>('checking');
+  const [checkedAt, setCheckedAt] = useState<string | null>(null);
+
+  const check = async () => {
+    setStatus('checking');
+    const ok = await healthApi.check();
+    setStatus(ok ? 'up' : 'down');
+    setCheckedAt(new Date().toLocaleTimeString('es-AR'));
+  };
+
+  useEffect(() => {
+    check();
+    const interval = setInterval(check, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const isUp = status === 'up';
+  const isChecking = status === 'checking';
+
   return (
     <Box>
       <Title order={2} mb={4}>Dashboard</Title>
       <Text c="dimmed" mb="xl">Bienvenido al panel de administración del SSO FRVM.</Text>
 
-      <Grid>
-        {stats.map(({ label, icon: Icon, description }) => (
-          <Grid.Col key={label} span={{ base: 12, sm: 4 }}>
-            <Card withBorder radius="md" p="lg">
-              <Group mb="sm">
-                <ThemeIcon variant="light" color="orange" size="lg" radius="md">
-                  <Icon size={18} />
-                </ThemeIcon>
-                <Text fw={600}>{label}</Text>
-              </Group>
-              <Text size="sm" c="dimmed">{description}</Text>
-            </Card>
-          </Grid.Col>
-        ))}
-      </Grid>
+      <Card withBorder radius="md" p="lg" maw={400}>
+        <Group mb="sm">
+          <ThemeIcon
+            variant="light"
+            color={isChecking ? 'gray' : isUp ? 'green' : 'red'}
+            size="lg"
+            radius="md"
+          >
+            {isUp ? <IconShieldCheck size={18} /> : <IconShieldX size={18} />}
+          </ThemeIcon>
+          <Text fw={600}>Estado del SSO</Text>
+        </Group>
+
+        <Group gap="xs">
+          <Badge
+            color={isChecking ? 'gray' : isUp ? 'green' : 'red'}
+            variant="light"
+            size="lg"
+          >
+            {isChecking ? 'Verificando...' : isUp ? 'En línea' : 'Sin conexión'}
+          </Badge>
+        </Group>
+
+        {checkedAt && (
+          <Text size="xs" c="dimmed" mt="sm">
+            Último chequeo: {checkedAt} · Se actualiza cada 30 segundos
+          </Text>
+        )}
+      </Card>
     </Box>
   );
 }

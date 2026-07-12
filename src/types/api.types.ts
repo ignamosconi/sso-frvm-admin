@@ -15,7 +15,7 @@ export interface AdminResponse {
 export interface OAuthClientResponse {
   id: number;
   clientName: string;
-  redirectUri: string;
+  redirectUris: string[];
   clientSecret: string;
   createdAt: string;
   updatedAt: string;
@@ -33,10 +33,10 @@ export interface UpdateAdminPayload {
 
 export interface CreateOAuthClientPayload {
   clientName: string;
-  redirectUri: string;
+  redirectUris: string[];
 }
 
 export interface UpdateOAuthClientPayload {
   clientName?: string;
-  redirectUri?: string;
+  redirectUris?: string[];
 }

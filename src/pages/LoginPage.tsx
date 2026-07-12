@@ -1,19 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box,
-  Card,
-  TextInput,
-  PasswordInput,
-  Button,
-  Text,
-  Title,
-  Alert,
-  Group,
+  Box, Card, TextInput, PasswordInput, Button,
+  Text, Title, Alert, Group, Image,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import logoUtn from '@/assets/logo-utn.png';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -31,6 +25,7 @@ export function LoginPage() {
       await login(username, password);
       navigate('/dashboard');
     } catch {
+      // Fix bug pantalla blanca: no limpiamos los inputs, solo mostramos el error
       setError('Credenciales inválidas. Verificá tu usuario y contraseña.');
     } finally {
       setLoading(false);
@@ -53,19 +48,7 @@ export function LoginPage() {
 
       <Card withBorder shadow="sm" radius="md" w={360} p="xl">
         <Group mb="xs" gap="xs">
-          <Box
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 6,
-              background: '#f5a705',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text fw={800} size="xs" c="#1a1200">SSO</Text>
-          </Box>
+          <Image src={logoUtn} w={32} h={32} fit="contain" />
           <Text fw={600} size="sm">UTN FRVM</Text>
         </Group>
 
@@ -86,6 +69,7 @@ export function LoginPage() {
             onChange={(e) => setUsername(e.target.value)}
             mb="sm"
             required
+            autoComplete="username"
           />
           <PasswordInput
             label="Contraseña"
@@ -94,6 +78,7 @@ export function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             mb="lg"
             required
+            autoComplete="current-password"
           />
           <Button
             type="submit"

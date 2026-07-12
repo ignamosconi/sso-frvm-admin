@@ -24,8 +24,8 @@ export const adminsApi = {
     return data;
   },
 
-  update: async (id: string, payload: UpdateAdminPayload): Promise<AdminResponse> => {
-    const { data } = await apiClient.patch<AdminResponse>(`/admin/admins/${id}`, payload);
+  updateSelf: async (payload: UpdateAdminPayload): Promise<AdminResponse> => {
+    const { data } = await apiClient.patch<AdminResponse>('/admin/admins/me', payload);
     return data;
   },
 
@@ -57,5 +57,9 @@ export const oauthClientsApi = {
   regenerateSecret: async (id: number): Promise<OAuthClientResponse> => {
     const { data } = await apiClient.post<OAuthClientResponse>(`/admin/clients/${id}/regenerate-secret`);
     return data;
+  },
+
+  sendCredentialsByEmail: async (id: number, to: string): Promise<void> => {
+    await apiClient.post(`/admin/clients/${id}/send-credentials`, { to });
   },
 };

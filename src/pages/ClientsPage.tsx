@@ -1,26 +1,142 @@
 import { useEffect, useState } from 'react';
 import {
-  Box, Title, Text, Button, Table, ActionIcon, Group,
-  Modal, TextInput, Alert, Loader, Center, Badge, CopyButton,
-  Tooltip, Code,
+  Box, Title, Text, Button, ActionIcon, Group, Modal,
+  TextInput, Alert, Loader, Center, Badge, CopyButton,
+  Tooltip, Code, Card, Stack, Divider,
+  Select, Pagination, TextInput as SearchInput,
 } from '@mantine/core';
 import {
   IconPlus, IconTrash, IconEdit, IconAlertCircle,
-  IconRefresh, IconCopy, IconCheck,
+  IconRefresh, IconCopy, IconCheck, IconChevronDown,
+  IconChevronUp, IconMail, IconSearch, IconX,
 } from '@tabler/icons-react';
 import { oauthClientsApi } from '@/api/adminApi';
-import { OAuthClientResponse, CreateOAuthClientPayload, UpdateOAuthClientPayload } from '@/types/api.types';
+import {
+  OAuthClientResponse, CreateOAuthClientPayload, UpdateOAuthClientPayload,
+} from '@/types/api.types';
+
+const PAGE_SIZE_OPTIONS = ['5', '10', '20', '50'];
+
+function TruncatedCopy({ value, maxWidth = 200 }: { value: string; maxWidth?: number }) {
+  return (
+    <Group gap={4} wrap="nowrap">
+      <Code
+        style={{
+          maxWidth,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          display: 'block',
+        }}
+      >
+        {value}
+      </Code>
+      <CopyButton value={value} timeout={2000}>
+        {({ copied, copy }) => (
+          <Tooltip label={copied ? 'Copiado' : 'Copiar'}>
+            <ActionIcon variant="subtle" size="sm" onClick={copy}>
+              {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+            </ActionIcon>
+          </Tooltip>
+        )}
+      </CopyButton>
+    </Group>
+  );
+}
+
+interface ClientCardProps {
+  client: OAuthClientResponse;
+  onEdit: (client: OAuthClientResponse) => void;
+  onDelete: (id: number) => void;
+  onRegenerate: (id: number) => void;
+  onEmail: (client: OAuthClientResponse) => void;
+}
+
+function ClientCard({ client, onEdit, onDelete, onRegenerate, onEmail }: ClientCardProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Card withBorder radius="md" p="md" mb="sm">
+      <Group justify="space-between" wrap="nowrap">
+        <Group gap="sm" wrap="nowrap">
+          <Badge variant="light" color="orange" size="sm">{client.id}</Badge>
+          <Text fw={600} size="sm" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {client.clientName}
+          </Text>
+        </Group>
+        <Group gap="xs" wrap="nowrap">
+          <Tooltip label="Enviar credenciales por email">
+            <ActionIcon variant="subtle" color="blue" onClick={() => onEmail(client)}>
+              <IconMail size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Editar">
+            <ActionIcon variant="subtle" onClick={() => onEdit(client)}>
+              <IconEdit size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Regenerar secret">
+            <ActionIcon variant="subtle" color="orange" onClick={() => onRegenerate(client.id)}>
+              <IconRefresh size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Eliminar">
+            <ActionIcon variant="subtle" color="red" onClick={() => onDelete(client.id)}>
+              <IconTrash size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <ActionIcon variant="subtle" onClick={() => setOpen(o => !o)}>
+            {open ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+          </ActionIcon>
+        </Group>
+      </Group>
+
+      {open && (
+        <>
+          <Divider my="sm" />
+          <Stack gap="xs">
+            <Box>
+              <Text size="xs" c="dimmed" mb={4}>Redirect URIs</Text>
+              {client.redirectUris.map(uri => (
+                <TruncatedCopy key={uri} value={uri} maxWidth={320} />
+              ))}
+            </Box>
+
+            <Box>
+              <Text size="xs" c="dimmed" mb={4}>Client Secret</Text>
+              <TruncatedCopy value={client.clientSecret} maxWidth={320} />
+            </Box>
+
+            <Text size="xs" c="dimmed">
+              Creado: {new Date(client.createdAt).toLocaleDateString('es-AR')}
+            </Text>
+          </Stack>
+        </>
+      )}
+    </Card>
+  );
+}
 
 export function ClientsPage() {
   const [clients, setClients] = useState<OAuthClientResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailTarget, setEmailTarget] = useState<OAuthClientResponse | null>(null);
+  const [emailAddress, setEmailAddress] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [editing, setEditing] = useState<OAuthClientResponse | null>(null);
   const [formName, setFormName] = useState('');
-  const [formUri, setFormUri] = useState('');
+  const [formUris, setFormUris] = useState<string[]>(['']);
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [searchId, setSearchId] = useState('');
+  const [searchUri, setSearchUri] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const load = async () => {
     try {
@@ -38,7 +154,7 @@ export function ClientsPage() {
   const openCreate = () => {
     setEditing(null);
     setFormName('');
-    setFormUri('');
+    setFormUris(['']);
     setFormError(null);
     setModalOpen(true);
   };
@@ -46,23 +162,48 @@ export function ClientsPage() {
   const openEdit = (client: OAuthClientResponse) => {
     setEditing(client);
     setFormName(client.clientName);
-    setFormUri(client.redirectUri);
+    setFormUris(client.redirectUris.length ? client.redirectUris : ['']);
     setFormError(null);
     setModalOpen(true);
+  };
+
+  const openEmail = (client: OAuthClientResponse) => {
+    setEmailTarget(client);
+    setEmailAddress('');
+    setEmailError(null);
+    setEmailModalOpen(true);
+  };
+
+  const handleUriChange = (index: number, value: string) => {
+    setFormUris(uris => uris.map((u, i) => i === index ? value : u));
+  };
+
+  const addUri = () => {
+    if (formUris.length < 5) setFormUris(u => [...u, '']);
+  };
+
+  const removeUri = (index: number) => {
+    if (formUris.length > 1) setFormUris(u => u.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     setFormLoading(true);
+    const cleanUris = formUris.map(u => u.trim()).filter(Boolean);
+    if (cleanUris.length === 0) {
+      setFormError('Agregá al menos una redirect URI.');
+      setFormLoading(false);
+      return;
+    }
     try {
       if (editing) {
         const payload: UpdateOAuthClientPayload = {};
         if (formName !== editing.clientName) payload.clientName = formName;
-        if (formUri !== editing.redirectUri) payload.redirectUri = formUri;
+        if (JSON.stringify(cleanUris) !== JSON.stringify(editing.redirectUris)) payload.redirectUris = cleanUris;
         await oauthClientsApi.update(editing.id, payload);
       } else {
-        const payload: CreateOAuthClientPayload = { clientName: formName, redirectUri: formUri };
+        const payload: CreateOAuthClientPayload = { clientName: formName, redirectUris: cleanUris };
         await oauthClientsApi.create(payload);
       }
       setModalOpen(false);
@@ -94,6 +235,33 @@ export function ClientsPage() {
     }
   };
 
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailTarget) return;
+    setEmailError(null);
+    setEmailLoading(true);
+    try {
+      await oauthClientsApi.sendCredentialsByEmail(emailTarget.id, emailAddress);
+      setEmailModalOpen(false);
+    } catch (err: any) {
+      setEmailError(err?.response?.data?.message ?? 'Error al enviar el email.');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const filtered = clients.filter(c => {
+    const matchName = c.clientName.toLowerCase().includes(search.toLowerCase());
+    const matchId = searchId ? String(c.id).includes(searchId) : true;
+    const matchUri = searchUri
+      ? c.redirectUris.some(u => u.toLowerCase().includes(searchUri.toLowerCase()))
+      : true;
+    return matchName && matchId && matchUri;
+  });
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <Box>
       <Group justify="space-between" mb="xl">
@@ -110,74 +278,60 @@ export function ClientsPage() {
         </Button>
       </Group>
 
-      {error && (
-        <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">{error}</Alert>
-      )}
+      {error && <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">{error}</Alert>}
+
+      <Group mb="md" align="flex-end" wrap="wrap" gap="sm">
+        <SearchInput
+          placeholder="Buscar por nombre..."
+          leftSection={<IconSearch size={14} />}
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          w={200}
+        />
+        <SearchInput
+          placeholder="Buscar por ID..."
+          leftSection={<IconSearch size={14} />}
+          value={searchId}
+          onChange={(e) => { setSearchId(e.target.value); setPage(1); }}
+          w={140}
+        />
+        <SearchInput
+          placeholder="Buscar por URI..."
+          leftSection={<IconSearch size={14} />}
+          value={searchUri}
+          onChange={(e) => { setSearchUri(e.target.value); setPage(1); }}
+          w={220}
+        />
+        <Select
+          data={PAGE_SIZE_OPTIONS}
+          value={String(pageSize)}
+          onChange={(v) => { setPageSize(Number(v)); setPage(1); }}
+          w={100}
+          label="Por página"
+        />
+      </Group>
 
       {loading ? (
         <Center h={200}><Loader /></Center>
       ) : (
-        <Table striped highlightOnHover withTableBorder>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>ID</Table.Th>
-              <Table.Th>Nombre</Table.Th>
-              <Table.Th>Redirect URI</Table.Th>
-              <Table.Th>Client Secret</Table.Th>
-              <Table.Th>Acciones</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {clients.map((client) => (
-              <Table.Tr key={client.id}>
-                <Table.Td>
-                  <Badge variant="light" color="orange">{client.id}</Badge>
-                </Table.Td>
-                <Table.Td>{client.clientName}</Table.Td>
-                <Table.Td>
-                  <Code>{client.redirectUri}</Code>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap="xs">
-                    <Code style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {client.clientSecret}
-                    </Code>
-                    <CopyButton value={client.clientSecret} timeout={2000}>
-                      {({ copied, copy }) => (
-                        <Tooltip label={copied ? 'Copiado' : 'Copiar secret'}>
-                          <ActionIcon variant="subtle" onClick={copy}>
-                            {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                          </ActionIcon>
-                        </Tooltip>
-                      )}
-                    </CopyButton>
-                  </Group>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap="xs">
-                    <Tooltip label="Editar">
-                      <ActionIcon variant="subtle" onClick={() => openEdit(client)}>
-                        <IconEdit size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Regenerar secret">
-                      <ActionIcon variant="subtle" color="orange" onClick={() => handleRegenerate(client.id)}>
-                        <IconRefresh size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Eliminar">
-                      <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(client.id)}>
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+        <>
+          {paginated.map(client => (
+            <ClientCard
+              key={client.id}
+              client={client}
+              onEdit={openEdit}
+              onDelete={handleDelete}
+              onRegenerate={handleRegenerate}
+              onEmail={openEmail}
+            />
+          ))}
+          <Group justify="center" mt="md">
+            <Pagination total={totalPages} value={page} onChange={setPage} />
+          </Group>
+        </>
       )}
 
+      {/* Modal crear/editar */}
       <Modal
         opened={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -197,14 +351,33 @@ export function ClientsPage() {
             required
             minLength={2}
           />
-          <TextInput
-            label="Redirect URI"
-            placeholder="http://localhost:4000/callback"
-            value={formUri}
-            onChange={(e) => setFormUri(e.target.value)}
-            mb="lg"
-            required
-          />
+          <Text size="sm" fw={500} mb={4}>Redirect URIs <Text span c="dimmed" size="xs">(máximo 5)</Text></Text>
+          <Text size="xs" c="dimmed" mb="sm">
+            Podés agregar una URL de desarrollo (localhost) y una de producción.
+          </Text>
+          <Stack gap="xs" mb="sm">
+            {formUris.map((uri, i) => (
+              <Group key={i} gap="xs" wrap="nowrap">
+                <TextInput
+                  placeholder={i === 0 ? 'http://localhost:4000/callback' : 'https://miapp.com/callback'}
+                  value={uri}
+                  onChange={(e) => handleUriChange(i, e.target.value)}
+                  style={{ flex: 1 }}
+                  required
+                />
+                {formUris.length > 1 && (
+                  <ActionIcon variant="subtle" color="red" onClick={() => removeUri(i)}>
+                    <IconX size={14} />
+                  </ActionIcon>
+                )}
+              </Group>
+            ))}
+          </Stack>
+          {formUris.length < 5 && (
+            <Button variant="subtle" size="xs" onClick={addUri} mb="lg" leftSection={<IconPlus size={12} />}>
+              Agregar URI
+            </Button>
+          )}
           <Button
             type="submit"
             fullWidth
@@ -212,6 +385,37 @@ export function ClientsPage() {
             style={{ background: '#f5a705', color: '#1a1200' }}
           >
             {editing ? 'Guardar cambios' : 'Crear cliente'}
+          </Button>
+        </form>
+      </Modal>
+
+      {/* Modal email */}
+      <Modal
+        opened={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        title={`Enviar credenciales — ${emailTarget?.clientName}`}
+        centered
+      >
+        {emailError && (
+          <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">{emailError}</Alert>
+        )}
+        <form onSubmit={handleSendEmail}>
+          <TextInput
+            label="Destinatario"
+            placeholder="desarrollador@frvm.utn.edu.ar"
+            value={emailAddress}
+            onChange={(e) => setEmailAddress(e.target.value)}
+            mb="lg"
+            required
+            type="email"
+          />
+          <Button
+            type="submit"
+            fullWidth
+            loading={emailLoading}
+            style={{ background: '#f5a705', color: '#1a1200' }}
+          >
+            Enviar credenciales
           </Button>
         </form>
       </Modal>
