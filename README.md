@@ -1,28 +1,25 @@
-# SSO FRVM — Panel de administración
+# SSO FRVM - Panel de administración
 
 Panel de administración para el servidor OAuth 2.0 [SSO FRVM](https://github.com/ignamosconi/sso-frvm).
 
 Permite a los administradores gestionar los clientes OAuth registrados y los usuarios con acceso al panel, sin necesidad de interactuar directamente con la API.
 
----
 
 ## Tecnologías
 
-- **React + TypeScript** — biblioteca de UI
-- **Vite** — bundler y servidor de desarrollo
-- **Mantine** — componentes de UI con soporte nativo de modo claro/oscuro
-- **Zustand** — estado global de autenticación
-- **Axios** — cliente HTTP
-- **React Router** — navegación
+- **React + TypeScript** - biblioteca de UI
+- **Vite** - bundler y servidor de desarrollo
+- **Mantine** - componentes de UI con soporte nativo de modo claro/oscuro
+- **Zustand** - estado global de autenticación
+- **Axios** - cliente HTTP
+- **React Router** - navegación
 
----
 
 ## Requisitos previos
 
 - Node.js
 - El backend [sso-frvm](https://github.com/ignamosconi/sso-frvm) corriendo y accesible
 
----
 
 ## Instalación
 
@@ -46,7 +43,6 @@ cp .env.example .env
 | `VITE_API_BASE_URL` | URL base del backend SSO FRVM | `http://localhost:3000` |
 | `AUTOGESTION_URL` | URL del endpoint público de autogestión UTN FRVM | `https://webservice.frvm.utn.edu.ar/autogestion` |
 
----
 
 ## Desarrollo
 
@@ -56,7 +52,6 @@ npm run dev
 
 El panel queda disponible en `http://localhost:5173`.
 
----
 
 ## Producción
 
@@ -64,9 +59,8 @@ El panel queda disponible en `http://localhost:5173`.
 npm run build
 ```
 
-El output queda en la carpeta `dist/`. Servila con cualquier servidor estático — nginx, Apache, o el propio NestJS si querés consolidar todo en un mismo servidor.
+El output queda en la carpeta `dist/`. Servila con cualquier servidor estático (nginx, Apache, o el propio NestJS si querés consolidar todo en un mismo servidor).
 
----
 
 ## Funcionalidades
 
