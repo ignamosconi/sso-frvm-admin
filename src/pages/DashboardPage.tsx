@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
-  Box, Title, Text, Card, Group, ThemeIcon, Badge,
+  Box, Title, Text, Card, Group, ThemeIcon, Badge, ActionIcon, Tooltip,
 } from '@mantine/core';
-import { IconShieldCheck, IconShieldX } from '@tabler/icons-react';
+import { IconShieldCheck, IconShieldX, IconRefresh } from '@tabler/icons-react';
 import { healthApi } from '@/api/healthApi';
 
 export function DashboardPage() {
@@ -31,16 +31,27 @@ export function DashboardPage() {
       <Text c="dimmed" mb="xl">Bienvenido al panel de administración del SSO FRVM.</Text>
 
       <Card withBorder radius="md" p="lg" maw={400}>
-        <Group mb="sm">
-          <ThemeIcon
-            variant="light"
-            color={isChecking ? 'gray' : isUp ? 'green' : 'red'}
-            size="lg"
-            radius="md"
-          >
-            {isUp ? <IconShieldCheck size={18} /> : <IconShieldX size={18} />}
-          </ThemeIcon>
-          <Text fw={600}>Estado del SSO</Text>
+        <Group justify="space-between" mb="sm">
+          <Group>
+            <ThemeIcon
+              variant="light"
+              color={isChecking ? 'gray' : isUp ? 'green' : 'red'}
+              size="lg"
+              radius="md"
+            >
+              {isUp ? <IconShieldCheck size={18} /> : <IconShieldX size={18} />}
+            </ThemeIcon>
+            <Text fw={600}>Estado del SSO</Text>
+          </Group>
+          <Tooltip label="Verificar ahora">
+            <ActionIcon
+              variant="subtle"
+              onClick={check}
+              loading={isChecking}
+            >
+              <IconRefresh size={16} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
 
         <Group gap="xs">

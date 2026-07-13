@@ -3,7 +3,7 @@ import {
   Box, Title, Text, Button, ActionIcon, Group, Modal,
   TextInput, Alert, Loader, Center, Badge, CopyButton,
   Tooltip, Code, Card, Stack, Divider,
-  Select, Pagination, TextInput as SearchInput,
+  Select, Pagination,
 } from '@mantine/core';
 import {
   IconPlus, IconTrash, IconEdit, IconAlertCircle,
@@ -46,15 +46,15 @@ function TruncatedCopy({ value, maxWidth = 200 }: { value: string; maxWidth?: nu
 
 interface ClientCardProps {
   client: OAuthClientResponse;
+  isOpen: boolean;
+  onToggle: (id: number) => void;
   onEdit: (client: OAuthClientResponse) => void;
   onDelete: (id: number) => void;
   onRegenerate: (id: number) => void;
   onEmail: (client: OAuthClientResponse) => void;
 }
 
-function ClientCard({ client, onEdit, onDelete, onRegenerate, onEmail }: ClientCardProps) {
-  const [open, setOpen] = useState(false);
-
+function ClientCard({ client, isOpen, onToggle, onEdit, onDelete, onRegenerate, onEmail }: ClientCardProps) {
   return (
     <Card withBorder radius="md" p="md" mb="sm">
       <Group justify="space-between" wrap="nowrap">
@@ -85,13 +85,13 @@ function ClientCard({ client, onEdit, onDelete, onRegenerate, onEmail }: ClientC
               <IconTrash size={16} />
             </ActionIcon>
           </Tooltip>
-          <ActionIcon variant="subtle" onClick={() => setOpen(o => !o)}>
-            {open ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+          <ActionIcon variant="subtle" onClick={() => onToggle(client.id)}>
+            {isOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
           </ActionIcon>
         </Group>
       </Group>
 
-      {open && (
+      {isOpen && (
         <>
           <Divider my="sm" />
           <Stack gap="xs">
@@ -101,12 +101,10 @@ function ClientCard({ client, onEdit, onDelete, onRegenerate, onEmail }: ClientC
                 <TruncatedCopy key={uri} value={uri} maxWidth={320} />
               ))}
             </Box>
-
             <Box>
               <Text size="xs" c="dimmed" mb={4}>Client Secret</Text>
               <TruncatedCopy value={client.clientSecret} maxWidth={320} />
             </Box>
-
             <Text size="xs" c="dimmed">
               Creado: {new Date(client.createdAt).toLocaleDateString('es-AR')}
             </Text>
@@ -121,12 +119,17 @@ export function ClientsPage() {
   const [clients, setClients] = useState<OAuthClientResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Estado de expansión por id — vive en el padre para sobrevivir a recargas
+  const [openIds, setOpenIds] = useState<Set<number>>(new Set());
+
   const [modalOpen, setModalOpen] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [emailTarget, setEmailTarget] = useState<OAuthClientResponse | null>(null);
   const [emailAddress, setEmailAddress] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState(false);
   const [editing, setEditing] = useState<OAuthClientResponse | null>(null);
   const [formName, setFormName] = useState('');
   const [formUris, setFormUris] = useState<string[]>(['']);
@@ -151,6 +154,15 @@ export function ClientsPage() {
 
   useEffect(() => { load(); }, []);
 
+  const toggleOpen = (id: number) => {
+    setOpenIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const openCreate = () => {
     setEditing(null);
     setFormName('');
@@ -171,6 +183,7 @@ export function ClientsPage() {
     setEmailTarget(client);
     setEmailAddress('');
     setEmailError(null);
+    setEmailSuccess(false);
     setEmailModalOpen(true);
   };
 
@@ -219,6 +232,7 @@ export function ClientsPage() {
     if (!confirm('¿Eliminar este cliente OAuth?')) return;
     try {
       await oauthClientsApi.remove(id);
+      setOpenIds(prev => { const next = new Set(prev); next.delete(id); return next; });
       load();
     } catch {
       setError('Error al eliminar el cliente.');
@@ -228,8 +242,10 @@ export function ClientsPage() {
   const handleRegenerate = async (id: number) => {
     if (!confirm('¿Regenerar el client secret? El anterior quedará invalidado inmediatamente.')) return;
     try {
-      await oauthClientsApi.regenerateSecret(id);
-      load();
+      const updated = await oauthClientsApi.regenerateSecret(id);
+      // Actualizamos solo el cliente afectado sin recargar toda la lista
+      // así los estados de expansión se preservan
+      setClients(prev => prev.map(c => c.id === id ? updated : c));
     } catch {
       setError('Error al regenerar el secret.');
     }
@@ -242,7 +258,7 @@ export function ClientsPage() {
     setEmailLoading(true);
     try {
       await oauthClientsApi.sendCredentialsByEmail(emailTarget.id, emailAddress);
-      setEmailModalOpen(false);
+      setEmailSuccess(true);
     } catch (err: any) {
       setEmailError(err?.response?.data?.message ?? 'Error al enviar el email.');
     } finally {
@@ -281,21 +297,21 @@ export function ClientsPage() {
       {error && <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">{error}</Alert>}
 
       <Group mb="md" align="flex-end" wrap="wrap" gap="sm">
-        <SearchInput
+        <TextInput
           placeholder="Buscar por nombre..."
           leftSection={<IconSearch size={14} />}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           w={200}
         />
-        <SearchInput
+        <TextInput
           placeholder="Buscar por ID..."
           leftSection={<IconSearch size={14} />}
           value={searchId}
           onChange={(e) => { setSearchId(e.target.value); setPage(1); }}
           w={140}
         />
-        <SearchInput
+        <TextInput
           placeholder="Buscar por URI..."
           leftSection={<IconSearch size={14} />}
           value={searchUri}
@@ -319,6 +335,8 @@ export function ClientsPage() {
             <ClientCard
               key={client.id}
               client={client}
+              isOpen={openIds.has(client.id)}
+              onToggle={toggleOpen}
               onEdit={openEdit}
               onDelete={handleDelete}
               onRegenerate={handleRegenerate}
@@ -351,9 +369,11 @@ export function ClientsPage() {
             required
             minLength={2}
           />
-          <Text size="sm" fw={500} mb={4}>Redirect URIs <Text span c="dimmed" size="xs">(máximo 5)</Text></Text>
+          <Text size="sm" fw={500} mb={4}>
+            Redirect URIs <Text span c="dimmed" size="xs">(máximo 5)</Text>
+          </Text>
           <Text size="xs" c="dimmed" mb="sm">
-            Podés agregar una URL de desarrollo (localhost) y una de producción.
+            Podés agregar URLs de desarrollo (localhost) y de producción.
           </Text>
           <Stack gap="xs" mb="sm">
             {formUris.map((uri, i) => (
@@ -399,25 +419,31 @@ export function ClientsPage() {
         {emailError && (
           <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">{emailError}</Alert>
         )}
-        <form onSubmit={handleSendEmail}>
-          <TextInput
-            label="Destinatario"
-            placeholder="desarrollador@frvm.utn.edu.ar"
-            value={emailAddress}
-            onChange={(e) => setEmailAddress(e.target.value)}
-            mb="lg"
-            required
-            type="email"
-          />
-          <Button
-            type="submit"
-            fullWidth
-            loading={emailLoading}
-            style={{ background: '#f5a705', color: '#1a1200' }}
-          >
-            Enviar credenciales
-          </Button>
-        </form>
+        {emailSuccess ? (
+          <Alert icon={<IconCheck size={16} />} color="green" radius="md">
+            Credenciales enviadas correctamente a <strong>{emailAddress}</strong>.
+          </Alert>
+        ) : (
+          <form onSubmit={handleSendEmail}>
+            <TextInput
+              label="Destinatario"
+              placeholder="desarrollador@frvm.utn.edu.ar"
+              value={emailAddress}
+              onChange={(e) => setEmailAddress(e.target.value)}
+              mb="lg"
+              required
+              type="email"
+            />
+            <Button
+              type="submit"
+              fullWidth
+              loading={emailLoading}
+              style={{ background: '#f5a705', color: '#1a1200' }}
+            >
+              Enviar credenciales
+            </Button>
+          </form>
+        )}
       </Modal>
     </Box>
   );

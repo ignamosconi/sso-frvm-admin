@@ -19,13 +19,12 @@ export function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    // No limpiamos el error antes de intentar — evita el flash
     setLoading(true);
     try {
       await login(username, password);
       navigate('/dashboard');
     } catch {
-      // Fix bug pantalla blanca: no limpiamos los inputs, solo mostramos el error
       setError('Credenciales inválidas. Verificá tu usuario y contraseña.');
     } finally {
       setLoading(false);
@@ -42,14 +41,13 @@ export function LoginPage() {
         padding: '1rem',
       }}
     >
-      <Box style={{ position: 'absolute', top: 16, right: 16 }}>
-        <ThemeToggle />
-      </Box>
-
       <Card withBorder shadow="sm" radius="md" w={360} p="xl">
-        <Group mb="xs" gap="xs">
-          <Image src={logoUtn} w={32} h={32} fit="contain" />
-          <Text fw={600} size="sm">UTN FRVM</Text>
+        <Group justify="space-between" align="center" mb="xs">
+          <Group gap="xs">
+            <Image src={logoUtn} w={32} h={32} fit="contain" />
+            <Text fw={600} size="sm">UTN FRVM</Text>
+          </Group>
+          <ThemeToggle />
         </Group>
 
         <Title order={2} mb={4}>Iniciar sesión</Title>
