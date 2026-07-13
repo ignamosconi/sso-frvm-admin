@@ -31,6 +31,14 @@ export function FaqsPage() {
               </Anchor>
             </Text>
           </List.Item>
+          <List.Item>
+            <Text size="sm">
+              Front-end administración:{' '}
+              <Anchor href="https://github.com/ignamosconi/sso-frvm-admin" target="_blank">
+                github.com/ignamosconi/sso-frvm-admin
+              </Anchor>
+            </Text>
+          </List.Item>
         </List>
       </Card>
 
