@@ -1,75 +1,110 @@
 import { useEffect, useState } from 'react';
 import {
-  Box, Title, Text, Card, Group, ThemeIcon, Badge, ActionIcon, Tooltip,
+  Box, Title, Text, Card, Group, ThemeIcon, Badge,
+  ActionIcon, Tooltip, SimpleGrid,
 } from '@mantine/core';
 import { IconShieldCheck, IconShieldX, IconRefresh } from '@tabler/icons-react';
 import { healthApi } from '@/api/healthApi';
 
-export function DashboardPage() {
-  const [status, setStatus] = useState<'checking' | 'up' | 'down'>('checking');
-  const [checkedAt, setCheckedAt] = useState<string | null>(null);
+type Status = 'checking' | 'up' | 'down';
 
-  const check = async () => {
-    setStatus('checking');
-    const ok = await healthApi.check();
-    setStatus(ok ? 'up' : 'down');
-    setCheckedAt(new Date().toLocaleTimeString('es-AR'));
+interface StatusCardProps {
+  label: string;
+  description: string;
+  status: Status;
+  checkedAt: string | null;
+  onRetry: () => void;
+}
+
+function StatusCard({ label, description, status, checkedAt, onRetry }: StatusCardProps) {
+  const isUp = status === 'up';
+  const isChecking = status === 'checking';
+  const color = isChecking ? 'gray' : isUp ? 'green' : 'red';
+
+  return (
+    <Card withBorder radius="md" p="lg">
+      <Group justify="space-between" mb="sm">
+        <Group>
+          <ThemeIcon variant="light" color={color} size="lg" radius="md">
+            {isUp ? <IconShieldCheck size={18} /> : <IconShieldX size={18} />}
+          </ThemeIcon>
+          <Box>
+            <Text fw={600} size="sm">{label}</Text>
+            <Text size="xs" c="dimmed">{description}</Text>
+          </Box>
+        </Group>
+        <Tooltip label="Verificar ahora">
+          <ActionIcon variant="subtle" onClick={onRetry} loading={isChecking}>
+            <IconRefresh size={16} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
+
+      <Badge color={color} variant="light" size="lg">
+        {isChecking ? 'Verificando...' : isUp ? 'En línea' : 'Sin conexión'}
+      </Badge>
+
+      {checkedAt && (
+        <Text size="xs" c="dimmed" mt="sm">
+          Último chequeo: {checkedAt} · Se actualiza cada 30 segundos
+        </Text>
+      )}
+    </Card>
+  );
+}
+
+export function DashboardPage() {
+  const [ssoStatus, setSsoStatus] = useState<Status>('checking');
+  const [ssoCheckedAt, setSsoCheckedAt] = useState<string | null>(null);
+  const [autogestionStatus, setAutogestionStatus] = useState<Status>('checking');
+  const [autogestionCheckedAt, setAutogestionCheckedAt] = useState<string | null>(null);
+
+  const checkSso = async () => {
+    setSsoStatus('checking');
+    const ok = await healthApi.checkSso();
+    setSsoStatus(ok ? 'up' : 'down');
+    setSsoCheckedAt(new Date().toLocaleTimeString('es-AR'));
+  };
+
+  const checkAutogestion = async () => {
+    setAutogestionStatus('checking');
+    const ok = await healthApi.checkAutogestion();
+    setAutogestionStatus(ok ? 'up' : 'down');
+    setAutogestionCheckedAt(new Date().toLocaleTimeString('es-AR'));
+  };
+
+  const checkAll = () => {
+    checkSso();
+    checkAutogestion();
   };
 
   useEffect(() => {
-    check();
-    const interval = setInterval(check, 30000);
+    checkAll();
+    const interval = setInterval(checkAll, 30000);
     return () => clearInterval(interval);
   }, []);
-
-  const isUp = status === 'up';
-  const isChecking = status === 'checking';
 
   return (
     <Box>
       <Title order={2} mb={4}>Dashboard</Title>
       <Text c="dimmed" mb="xl">Bienvenido al panel de administración del SSO FRVM.</Text>
 
-      <Card withBorder radius="md" p="lg" maw={400}>
-        <Group justify="space-between" mb="sm">
-          <Group>
-            <ThemeIcon
-              variant="light"
-              color={isChecking ? 'gray' : isUp ? 'green' : 'red'}
-              size="lg"
-              radius="md"
-            >
-              {isUp ? <IconShieldCheck size={18} /> : <IconShieldX size={18} />}
-            </ThemeIcon>
-            <Text fw={600}>Estado del SSO</Text>
-          </Group>
-          <Tooltip label="Verificar ahora">
-            <ActionIcon
-              variant="subtle"
-              onClick={check}
-              loading={isChecking}
-            >
-              <IconRefresh size={16} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-
-        <Group gap="xs">
-          <Badge
-            color={isChecking ? 'gray' : isUp ? 'green' : 'red'}
-            variant="light"
-            size="lg"
-          >
-            {isChecking ? 'Verificando...' : isUp ? 'En línea' : 'Sin conexión'}
-          </Badge>
-        </Group>
-
-        {checkedAt && (
-          <Text size="xs" c="dimmed" mt="sm">
-            Último chequeo: {checkedAt} · Se actualiza cada 30 segundos
-          </Text>
-        )}
-      </Card>
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" maw={800}>
+        <StatusCard
+          label="SSO FRVM"
+          description="Servidor de autenticación"
+          status={ssoStatus}
+          checkedAt={ssoCheckedAt}
+          onRetry={checkSso}
+        />
+        <StatusCard
+          label="Autogestión UTN"
+          description="webservice.frvm.utn.edu.ar"
+          status={autogestionStatus}
+          checkedAt={autogestionCheckedAt}
+          onRetry={checkAutogestion}
+        />
+      </SimpleGrid>
     </Box>
   );
 }
