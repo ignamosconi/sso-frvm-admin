@@ -3,10 +3,9 @@ import {
   Stack, Text, UnstyledButton, Group, Box, Divider, Image,
 } from '@mantine/core';
 import {
-  IconDashboard, IconUser, IconUsers, IconUserPlus,
-  IconApps, IconQuestionMark, IconLogout, IconChevronRight,
+  IconDashboard, IconUser, IconUsers,
+  IconApps, IconQuestionMark, IconLogout,
 } from '@tabler/icons-react';
-import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import logoUtn from '@/assets/logo-utn.png';
@@ -46,7 +45,6 @@ function NavItem({ to, label, icon: Icon, indent }: NavItemProps) {
 export function Navbar() {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [adminsOpen, setAdminsOpen] = useState(true);
 
   const handleLogout = () => {
     logout();
@@ -67,35 +65,8 @@ export function Navbar() {
         <Stack gap={2}>
           <NavItem to="/dashboard" label="Dashboard" icon={IconDashboard} />
 
-          <UnstyledButton
-            w="100%"
-            px="sm"
-            py={7}
-            onClick={() => setAdminsOpen(o => !o)}
-            style={(theme) => ({ borderRadius: theme.radius.sm })}
-          >
-            <Group gap="sm" justify="space-between">
-              <Group gap="sm">
-                <IconUsers size={15} />
-                <Text size="sm">Administradores</Text>
-              </Group>
-              <IconChevronRight
-                size={13}
-                style={{
-                  transform: adminsOpen ? 'rotate(90deg)' : 'none',
-                  transition: 'transform 0.2s',
-                }}
-              />
-            </Group>
-          </UnstyledButton>
-
-          {adminsOpen && (
-            <>
-              <NavItem to="/admins/me" label="Mi perfil" icon={IconUser} indent />
-              <NavItem to="/admins/list" label="Ver todos" icon={IconUsers} indent />
-              <NavItem to="/admins/create" label="Crear admin" icon={IconUserPlus} indent />
-            </>
-          )}
+          <NavItem to="/admins/me" label="Mi perfil" icon={IconUser} />
+          <NavItem to="/admins" label="Administradores" icon={IconUsers} />
 
           <NavItem to="/clients" label="Clientes OAuth" icon={IconApps} />
           <NavItem to="/faqs" label="FAQs" icon={IconQuestionMark} />
