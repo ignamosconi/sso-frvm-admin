@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { ENV } from '@/config/env';
 
 export const healthApi = {
@@ -13,11 +13,12 @@ export const healthApi = {
 
   checkAutogestion: async (): Promise<boolean> => {
     try {
-      await axios.get(`${ENV.AUTOGESTION_URL}`, { timeout: 5000 });
+      await axios.get(ENV.AUTOGESTION_URL, { timeout: 5000 });
       return true;
-    } catch (err: any) {
+    } catch (err) {
       // 401 significa que el servidor respondió — está vivo
-      if (err?.response?.status === 401) return true;
+      const axiosError = err as AxiosError;
+      if (axiosError?.response?.status === 401) return true;
       return false;
     }
   },

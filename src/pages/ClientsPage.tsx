@@ -103,7 +103,7 @@ function ClientCard({ client, isOpen, onToggle, onEdit, onDelete, onRegenerate, 
             </Box>
             <Box>
               <Text size="xs" c="dimmed" mb={4}>Client Secret</Text>
-              <TruncatedCopy value={client.clientSecret} maxWidth={320} />
+              {/* El client secret se muestra solo al crear/regenerar — ver Bloque 5 */}
             </Box>
             <Text size="xs" c="dimmed">
               Creado: {new Date(client.createdAt).toLocaleDateString('es-AR')}
@@ -242,10 +242,8 @@ export function ClientsPage() {
   const handleRegenerate = async (id: number) => {
     if (!confirm('¿Regenerar el client secret? El anterior quedará invalidado inmediatamente.')) return;
     try {
-      const updated = await oauthClientsApi.regenerateSecret(id);
-      // Actualizamos solo el cliente afectado sin recargar toda la lista
-      // así los estados de expansión se preservan
-      setClients(prev => prev.map(c => c.id === id ? updated : c));
+      await oauthClientsApi.regenerateSecret(id);
+      load(); // recarga la lista completa
     } catch {
       setError('Error al regenerar el secret.');
     }
@@ -257,7 +255,12 @@ export function ClientsPage() {
     setEmailError(null);
     setEmailLoading(true);
     try {
-      await oauthClientsApi.sendCredentialsByEmail(emailTarget.id, emailAddress);
+            // El plainSecret se agrega en Bloque 5 cuando se rediseña el flujo completo
+      // Por ahora usamos string vacío para que compile
+      await oauthClientsApi.sendCredentialsByEmail(emailTarget.id, {
+        to: emailAddress,
+        plainSecret: '',
+      });
       setEmailSuccess(true);
     } catch (err: any) {
       setEmailError(err?.response?.data?.message ?? 'Error al enviar el email.');

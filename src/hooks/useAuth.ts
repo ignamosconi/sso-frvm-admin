@@ -2,11 +2,12 @@ import { useAuthStore } from '@/store/authStore';
 import { authApi } from '@/api/authApi';
 
 export function useAuth() {
-  const { isAuthenticated, setTokens, logout } = useAuthStore();
+  const { isAuthenticated, logout } = useAuthStore();
 
   const login = async (username: string, password: string) => {
-    const data = await authApi.login(username, password);
-    setTokens(data.access_token, data.refresh_token);
+    // El flujo de 2FA se implementa en el Bloque 3 (LoginPage)
+    // useAuth.login ya no emite tokens directamente
+    return authApi.login(username, password);
   };
 
   return { isAuthenticated, login, logout };
