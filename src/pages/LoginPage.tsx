@@ -10,7 +10,7 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import logoUtn from '@/assets/logo-utn.png';
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const { loginStep1: login } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +23,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
-      navigate('/dashboard');
+      navigate('/dashboard'); // el flujo 2FA completo se implementa en Bloque 3
     } catch {
       setError('Credenciales inválidas. Verificá tu usuario y contraseña.');
     } finally {
