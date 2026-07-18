@@ -1,11 +1,12 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Stack, Text, UnstyledButton, Group, Box, Divider, Image,
+  Stack, Text, UnstyledButton, Group, Box, Divider, Image, Loader,
 } from '@mantine/core';
 import {
   IconDashboard, IconUser, IconUsers,
   IconApps, IconQuestionMark, IconLogout,
 } from '@tabler/icons-react';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import logoUtn from '@/assets/logo-utn.png';
@@ -45,10 +46,16 @@ function NavItem({ to, label, icon: Icon, indent }: NavItemProps) {
 export function Navbar() {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    setLogoutLoading(true);
+    try {
+      await logout();
+    } finally {
+      setLogoutLoading(false);
+      navigate('/login');
+    }
   };
 
   return (
@@ -64,10 +71,8 @@ export function Navbar() {
 
         <Stack gap={2}>
           <NavItem to="/dashboard" label="Dashboard" icon={IconDashboard} />
-
           <NavItem to="/admins/me" label="Mi perfil" icon={IconUser} />
           <NavItem to="/admins" label="Administradores" icon={IconUsers} />
-
           <NavItem to="/clients" label="Clientes OAuth" icon={IconApps} />
           <NavItem to="/faqs" label="FAQs" icon={IconQuestionMark} />
         </Stack>
@@ -76,10 +81,12 @@ export function Navbar() {
       <Box>
         <Divider mb="sm" />
         <Group justify="space-between">
-          <UnstyledButton onClick={handleLogout}>
+          <UnstyledButton onClick={() => void handleLogout()} disabled={logoutLoading}>
             <Group gap="sm">
-              <IconLogout size={16} />
-              <Text size="sm">Cerrar sesión</Text>
+              {logoutLoading ? <Loader size={16} color="orange" /> : <IconLogout size={16} />}
+              <Text size="sm" c={logoutLoading ? 'dimmed' : undefined}>
+                {logoutLoading ? 'Cerrando sesión...' : 'Cerrar sesión'}
+              </Text>
             </Group>
           </UnstyledButton>
           <ThemeToggle />
