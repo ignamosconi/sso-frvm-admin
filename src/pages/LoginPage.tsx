@@ -33,6 +33,43 @@ export function LoginPage() {
   // Ref al primer input del PinInput para darle foco automático
   const pinContainerRef = useRef<HTMLDivElement>(null);
 
+
+  const focusFirstPinInput = () => {
+    const firstInput = pinContainerRef.current?.querySelector('input');
+
+    if (firstInput instanceof HTMLInputElement) {
+      firstInput.focus();
+    }
+  };
+
+  const focusNextPinInput = () => {
+    const inputs = pinContainerRef.current?.querySelectorAll('input');
+
+    if (!inputs || inputs.length === 0) return;
+
+    const nextIndex = Math.min(totpCode.length, inputs.length - 1);
+    const nextInput = inputs[nextIndex];
+
+    if (nextInput instanceof HTMLInputElement) {
+      nextInput.focus();
+    }
+  };
+
+  //Evitar tab o shift+tab para navegar por los pines
+  const handlePinKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+    }
+  };
+
+  const resetTotpInput = () => {
+    setTotpCode('');
+
+    setTimeout(() => {
+      focusFirstPinInput();
+    }, 50);
+  };
+
   // Redirigir si ya está autenticado
   useEffect(() => {
     if (isAuthenticated) navigate('/dashboard', { replace: true });
@@ -42,9 +79,9 @@ export function LoginPage() {
   useEffect(() => {
     if (step === 'validate_2fa' || step === 'setup_2fa') {
       const timer = setTimeout(() => {
-        const firstInput = pinContainerRef.current?.querySelector('input');
-        firstInput?.focus();
+        focusFirstPinInput();
       }, 50);
+
       return () => clearTimeout(timer);
     }
   }, [step]);
@@ -96,12 +133,7 @@ export function LoginPage() {
       // confirm2fa llama setTokens → isAuthenticated = true → useEffect navega a /dashboard
     } catch {
       setError('Código incorrecto. Verificá que el autenticador esté sincronizado e intentá de nuevo.');
-      setTotpCode('');
-      // Foco de vuelta al primer input
-      setTimeout(() => {
-        const firstInput = pinContainerRef.current?.querySelector('input');
-        firstInput?.focus();
-      }, 50);
+      resetTotpInput();
     } finally {
       setLoading(false);
     }
@@ -122,11 +154,7 @@ export function LoginPage() {
       // validate2fa llama setTokens → isAuthenticated = true → useEffect navega a /dashboard
     } catch {
       setError('Código incorrecto. Intentá de nuevo con el código actual de tu autenticador.');
-      setTotpCode('');
-      setTimeout(() => {
-        const firstInput = pinContainerRef.current?.querySelector('input');
-        firstInput?.focus();
-      }, 50);
+      resetTotpInput();
     } finally {
       setLoading(false);
     }
@@ -140,7 +168,8 @@ export function LoginPage() {
   };
 
   const isSetupStep = step === 'setup_2fa';
-  const cardWidth = isSetupStep ? 480 : 360;
+  const is2faStep = step === 'setup_2fa' || step === 'validate_2fa';
+  const cardWidth = isSetupStep ? 480 : is2faStep ? 400 : 360;
 
   return (
     <Box
@@ -298,6 +327,11 @@ export function LoginPage() {
                 mb="lg"
                 ref={pinContainerRef}
                 className="pin-input-container"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  focusNextPinInput();
+                }}
+                onKeyDown={handlePinKeyDown}
               >
                 <PinInput
                   length={6}
@@ -340,6 +374,11 @@ export function LoginPage() {
                 mb="lg"
                 ref={pinContainerRef}
                 className="pin-input-container"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  focusNextPinInput();
+                }}
+                onKeyDown={handlePinKeyDown}
               >
                 <PinInput
                   length={6}

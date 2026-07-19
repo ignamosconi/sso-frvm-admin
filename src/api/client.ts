@@ -26,25 +26,38 @@ apiClient.interceptors.response.use(
 
     const originalRequest = error.config as typeof error.config & { _retry?: boolean };
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    const isAuthRequest =
+      originalRequest?.url?.includes('/admin/auth/login') ||
+      originalRequest?.url?.includes('/admin/auth/2fa/setup') ||
+      originalRequest?.url?.includes('/admin/auth/2fa/confirm') ||
+      originalRequest?.url?.includes('/admin/auth/2fa/validate') ||
+      originalRequest?.url?.includes('/admin/auth/refresh');
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !isAuthRequest
+    ) {
       originalRequest._retry = true;
 
       try {
-        // Si ya hay un refresh en vuelo, esperamos ese en lugar de lanzar otro
         if (!refreshPromise) {
           refreshPromise = useAuthStore.getState().refresh().finally(() => {
             refreshPromise = null;
           });
         }
+
         await refreshPromise;
 
         const token = useAuthStore.getState().accessToken;
+
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${token}`;
         }
+
         return apiClient(originalRequest);
       } catch {
-        // El refresh falló — cerrar sesión y redirigir al login
         await useAuthStore.getState().logout();
         window.location.href = '/login';
         return Promise.reject(error);

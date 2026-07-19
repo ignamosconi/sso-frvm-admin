@@ -609,9 +609,9 @@ export function ClientsPage() {
       >
         <Alert color="orange" mb="md" radius="md">
           <Text size="sm" fw={500}>
-            El Client Secret fue generado. Por seguridad, el admin no lo ve directamente —
-            envialo al desarrollador por email. El destinatario recibirá un link de un solo
-            uso válido por 24 horas con sus credenciales.
+            El Client Secret fue generado. Por seguridad, el admin no lo ve directamente, sino que
+            debe enviarlo al desarrollador por email, que recibirá un link de un solo
+            uso (válido por 24 horas) con sus credenciales y un instructivo de cómo usarlas.
           </Text>
         </Alert>
 
