@@ -200,7 +200,11 @@ export function LoginPage() {
           <ThemeToggle />
         </Group>
 
-        <Transition mounted={!!error} transition="fade" duration={200}>
+        <Transition
+          mounted={!!error && step !== 'setup_2fa'}
+          transition="fade"
+          duration={200}
+        >
           {(styles) => (
             <Alert
               icon={<IconAlertCircle size={16} />}
@@ -324,7 +328,7 @@ export function LoginPage() {
               <Group
                 justify="center"
                 mt="md"
-                mb="lg"
+                mb={error ? 'sm' : 'lg'}
                 ref={pinContainerRef}
                 className="pin-input-container"
                 onMouseDown={(event) => {
@@ -343,6 +347,21 @@ export function LoginPage() {
                   oneTimeCode
                 />
               </Group>
+
+              <Transition mounted={!!error} transition="fade" duration={200}>
+                {(styles) => (
+                  <Alert
+                    icon={<IconAlertCircle size={16} />}
+                    color="red"
+                    mb="md"
+                    radius="md"
+                    style={styles}
+                  >
+                    {error}
+                  </Alert>
+                )}
+              </Transition>
+
               <Button
                 type="submit"
                 fullWidth
@@ -390,6 +409,7 @@ export function LoginPage() {
                   oneTimeCode
                 />
               </Group>
+
               <Button
                 type="submit"
                 fullWidth
