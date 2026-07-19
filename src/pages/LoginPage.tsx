@@ -259,27 +259,24 @@ export function LoginPage() {
         {/* ── Step 2a: Setup 2FA ── */}
         {step === 'setup_2fa' && setupData && (
           <>
-            <Title order={2} mb={4} mt="sm">Configurar autenticador</Title>
-            <Text size="sm" c="dimmed" mb="md">
-              Es la primera vez que iniciás sesión. Necesitás vincular una app de autenticación.
-            </Text>
+            <Title order={3} mb={4} mt="sm">Configurar autenticador</Title>
 
             <Alert icon={<IconShieldCheck size={16} />} color="orange" mb="md" radius="md">
               <Text size="sm" fw={500}>
-                Descargá <strong>Google Authenticator</strong> en tu celular antes de continuar.
+                Descargá <strong>Google Authenticator</strong> u otra app de autenticación para continuar.
               </Text>
             </Alert>
 
             <Stack gap="md" mb="md">
               <Box>
-                <Text size="sm" fw={500} mb="xs">1. Escaneá este código QR con la app</Text>
+                <Text size="sm" fw={500} mb="xs">1. Escaneá este código QR con la app:</Text>
                 <Box
                   style={{
                     display: 'flex',
                     justifyContent: 'center',
                     background: 'white',
                     borderRadius: 8,
-                    padding: 12,
+                    padding: 3,
                   }}
                 >
                   <img
@@ -292,7 +289,7 @@ export function LoginPage() {
 
               <Box>
                 <Text size="sm" fw={500} mb={4}>
-                  2. Si no podés escanear el QR, ingresá este código manualmente en la app
+                  2. O bien ingresá este código manualmente:
                 </Text>
                 <Group gap="xs" align="center">
                   <Code
@@ -323,7 +320,7 @@ export function LoginPage() {
 
             <form onSubmit={(e) => void handleConfirm2fa(e)}>
               <Text size="sm" fw={500} mb="xs">
-                3. Ingresá el código de 6 dígitos que genera la app para confirmar
+                3. Ingresá el código de 6 dígitos generado por la app:
               </Text>
               <Group
                 justify="center"
