@@ -472,7 +472,7 @@ export function ClientsPage() {
               onEmail={() => {
                 // El email se envía solo desde el modal de secret donde está el plainSecret.
                 // Si el admin quiere reenviar credenciales sin regenerar, debe regenerar el secret.
-                setError('Para enviar las credenciales por email, regenerá el secret y usá el botón de email en el modal.');
+                setError('Para enviar las credenciales por email, regenerá el secret y completá con el email en el modal.');
               }}
               onSuspend={handleSuspend}
               onActivate={handleActivate}
