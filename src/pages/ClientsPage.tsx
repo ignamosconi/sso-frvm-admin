@@ -650,7 +650,7 @@ export function ClientsPage() {
               Credenciales enviadas correctamente a <strong>{emailAddress}</strong>.
               El destinatario recibirá un link de un solo uso válido por 24 horas.
             </Alert>
-            <Button fullWidth variant="light" onClick={() => setSecretModalOpen(false)}>
+            <Button fullWidth variant="dark" onClick={() => setSecretModalOpen(false)}>
               Cerrar
             </Button>
           </>
