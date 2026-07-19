@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Card, TextInput, PasswordInput, Button,
   Text, Title, Alert, Group, Image, PinInput,
   Stack, Divider, CopyButton, Tooltip, ActionIcon,
-  Code,
+  Code, Transition,
 } from '@mantine/core';
 import {
   IconAlertCircle, IconShieldCheck, IconCopy, IconCheck,
@@ -15,11 +15,7 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import logoUtn from '@/assets/logo-utn.png';
 import type { Admin2faSetupResponse } from '@/types/api.types';
 
-// Máquina de estados del login
-type LoginStep =
-  | 'credentials'   // paso 1: usuario + password
-  | 'setup_2fa'     // paso 2a: primera vez — mostrar QR y confirmar
-  | 'validate_2fa'; // paso 2b: logins posteriores — ingresar código
+type LoginStep = 'credentials' | 'setup_2fa' | 'validate_2fa';
 
 export function LoginPage() {
   const { loginStep1, setup2fa, confirm2fa, validate2fa } = useAuth();
@@ -34,25 +30,48 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Si ya está autenticado, redirigir al dashboard
+  // Ref al primer input del PinInput para darle foco automático
+  const pinContainerRef = useRef<HTMLDivElement>(null);
+
+  // Redirigir si ya está autenticado
   useEffect(() => {
     if (isAuthenticated) navigate('/dashboard', { replace: true });
   }, [isAuthenticated, navigate]);
 
+  // Foco automático en el primer input del PinInput al cambiar de step
+  useEffect(() => {
+    if (step === 'validate_2fa' || step === 'setup_2fa') {
+      const timer = setTimeout(() => {
+        const firstInput = pinContainerRef.current?.querySelector('input');
+        firstInput?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [step]);
+
   // ── Paso 1: credenciales ──────────────────────────────────────────────────
   const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validación manual para evitar el pop-in del browser con minLength nativo
+    if (username.length < 3) {
+      setError('El usuario debe tener al menos 3 caracteres.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+
     setError(null);
     setLoading(true);
     try {
       const response = await loginStep1(username, password);
       if (response.requires_2fa_setup) {
-        // Primera vez — pedir QR al backend
         const qrData = await setup2fa(response.pending_token);
         setSetupData(qrData);
         setStep('setup_2fa');
       } else {
-        // Ya tiene 2FA configurado
         setStep('validate_2fa');
       }
     } catch {
@@ -65,15 +84,24 @@ export function LoginPage() {
   // ── Paso 2a: confirmar primer código TOTP (setup) ─────────────────────────
   const handleConfirm2fa = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pendingToken) { setError('Sesión expirada. Volvé a ingresar tus credenciales.'); setStep('credentials'); return; }
+    if (!pendingToken) {
+      setError('La sesión expiró. Volvé a ingresar tus credenciales.');
+      setStep('credentials');
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
       await confirm2fa(pendingToken, totpCode);
-      navigate('/dashboard', { replace: true });
+      // confirm2fa llama setTokens → isAuthenticated = true → useEffect navega a /dashboard
     } catch {
-      setError('Código incorrecto. Verificá que el autenticador esté sincronizado.');
+      setError('Código incorrecto. Verificá que el autenticador esté sincronizado e intentá de nuevo.');
       setTotpCode('');
+      // Foco de vuelta al primer input
+      setTimeout(() => {
+        const firstInput = pinContainerRef.current?.querySelector('input');
+        firstInput?.focus();
+      }, 50);
     } finally {
       setLoading(false);
     }
@@ -82,15 +110,23 @@ export function LoginPage() {
   // ── Paso 2b: validar código TOTP (logins posteriores) ────────────────────
   const handleValidate2fa = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pendingToken) { setError('Sesión expirada. Volvé a ingresar tus credenciales.'); setStep('credentials'); return; }
+    if (!pendingToken) {
+      setError('La sesión expiró. Volvé a ingresar tus credenciales.');
+      setStep('credentials');
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
       await validate2fa(pendingToken, totpCode);
-      navigate('/dashboard', { replace: true });
+      // validate2fa llama setTokens → isAuthenticated = true → useEffect navega a /dashboard
     } catch {
-      setError('Código incorrecto. Intentá de nuevo.');
+      setError('Código incorrecto. Intentá de nuevo con el código actual de tu autenticador.');
       setTotpCode('');
+      setTimeout(() => {
+        const firstInput = pinContainerRef.current?.querySelector('input');
+        firstInput?.focus();
+      }, 50);
     } finally {
       setLoading(false);
     }
@@ -103,6 +139,9 @@ export function LoginPage() {
     setError(null);
   };
 
+  const isSetupStep = step === 'setup_2fa';
+  const cardWidth = isSetupStep ? 480 : 360;
+
   return (
     <Box
       style={{
@@ -113,7 +152,17 @@ export function LoginPage() {
         padding: '1rem',
       }}
     >
-      <Card withBorder shadow="sm" radius="md" w={step === 'setup_2fa' ? 480 : 360} p="xl">
+      <Card
+        withBorder
+        shadow="sm"
+        radius="md"
+        p="xl"
+        style={{
+          width: cardWidth,
+          transition: 'width 0.3s ease',
+          overflow: 'hidden',
+        }}
+      >
         <Group justify="space-between" align="center" mb="xs">
           <Group gap="xs">
             <Image src={logoUtn} w={32} h={32} fit="contain" />
@@ -122,32 +171,42 @@ export function LoginPage() {
           <ThemeToggle />
         </Group>
 
-        {error && (
-          <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md" radius="md">
-            {error}
-          </Alert>
-        )}
+        <Transition mounted={!!error} transition="fade" duration={200}>
+          {(styles) => (
+            <Alert
+              icon={<IconAlertCircle size={16} />}
+              color="red"
+              mb="md"
+              radius="md"
+              mt="sm"
+              style={styles}
+            >
+              {error}
+            </Alert>
+          )}
+        </Transition>
 
         {/* ── Step 1: Credenciales ── */}
         {step === 'credentials' && (
           <>
-            <Title order={2} mb={4}>Iniciar sesión</Title>
+            <Title order={2} mb={4} mt="sm">Iniciar sesión</Title>
             <Text size="sm" c="dimmed" mb="lg">Panel de administración del SSO</Text>
-            <form onSubmit={handleCredentials}>
+            <form onSubmit={(e) => void handleCredentials(e)}>
               <TextInput
                 label="Usuario"
                 placeholder="admin"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => { setUsername(e.target.value); setError(null); }}
                 mb="sm"
                 required
                 autoComplete="username"
+                data-autofocus
               />
               <PasswordInput
                 label="Contraseña"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setError(null); }}
                 mb="lg"
                 required
                 autoComplete="current-password"
@@ -164,10 +223,10 @@ export function LoginPage() {
           </>
         )}
 
-        {/* ── Step 2a: Setup 2FA (primera vez) ── */}
+        {/* ── Step 2a: Setup 2FA ── */}
         {step === 'setup_2fa' && setupData && (
           <>
-            <Title order={2} mb={4}>Configurar autenticador</Title>
+            <Title order={2} mb={4} mt="sm">Configurar autenticador</Title>
             <Text size="sm" c="dimmed" mb="md">
               Es la primera vez que iniciás sesión. Necesitás vincular una app de autenticación.
             </Text>
@@ -200,7 +259,7 @@ export function LoginPage() {
 
               <Box>
                 <Text size="sm" fw={500} mb={4}>
-                  2. Si no podés escanear el QR, ingresá este código manualmente
+                  2. Si no podés escanear el QR, ingresá este código manualmente en la app
                 </Text>
                 <Group gap="xs" align="center">
                   <Code
@@ -229,14 +288,22 @@ export function LoginPage() {
 
             <Divider mb="md" />
 
-            <form onSubmit={handleConfirm2fa}>
-              <Text size="sm" fw={500} mb="xs">3. Ingresá el código de 6 dígitos que genera la app</Text>
-              <Group justify="center" mb="lg">
+            <form onSubmit={(e) => void handleConfirm2fa(e)}>
+              <Text size="sm" fw={500} mb="xs">
+                3. Ingresá el código de 6 dígitos que genera la app para confirmar
+              </Text>
+              <Group
+                justify="center"
+                mt="md"
+                mb="lg"
+                ref={pinContainerRef}
+                className="pin-input-container"
+              >
                 <PinInput
                   length={6}
                   type="number"
                   value={totpCode}
-                  onChange={setTotpCode}
+                  onChange={(val) => { setTotpCode(val); setError(null); }}
                   placeholder="○"
                   size="lg"
                   oneTimeCode
@@ -259,20 +326,26 @@ export function LoginPage() {
           </>
         )}
 
-        {/* ── Step 2b: Validar 2FA (logins posteriores) ── */}
+        {/* ── Step 2b: Validar 2FA ── */}
         {step === 'validate_2fa' && (
           <>
-            <Title order={2} mb={4}>Verificación en dos pasos</Title>
+            <Title order={2} mb={4} mt="sm">Verificación en dos pasos</Title>
             <Text size="sm" c="dimmed" mb="lg">
               Ingresá el código de 6 dígitos de tu app autenticadora.
             </Text>
-            <form onSubmit={handleValidate2fa}>
-              <Group justify="center" mb="lg">
+            <form onSubmit={(e) => void handleValidate2fa(e)}>
+              <Group
+                justify="center"
+                mt="md"
+                mb="lg"
+                ref={pinContainerRef}
+                className="pin-input-container"
+              >
                 <PinInput
                   length={6}
                   type="number"
                   value={totpCode}
-                  onChange={setTotpCode}
+                  onChange={(val) => { setTotpCode(val); setError(null); }}
                   placeholder="○"
                   size="lg"
                   oneTimeCode

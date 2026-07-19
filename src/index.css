@@ -10,3 +10,9 @@
 body {
   margin: 0;
 }
+
+/* Deshabilitar clicks directos en inputs individuales del PinInput.
+   El contenedor sigue siendo clickeable para que el foco funcione. */
+.pin-input-container input {
+  pointer-events: none;
+}

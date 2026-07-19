@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import {
-  Box, Title, Text, Card, TextInput, PasswordInput,
-  Button, Alert, Divider,
+  Box, Title, Text, TextInput, PasswordInput,
+  Button, Alert, Tabs, Paper,
 } from '@mantine/core';
-import { IconAlertCircle, IconCheck, IconShieldOff } from '@tabler/icons-react';
+import { IconAlertCircle, IconCheck, IconShieldOff, IconUser } from '@tabler/icons-react';
 import { adminsApi } from '@/api/adminApi';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,14 +13,12 @@ export function MyProfilePage() {
   const { adminUsername, setTokens, accessToken, refreshToken } = useAuthStore();
   const { reset2fa } = useAuth();
 
-  // Sección perfil
   const [username, setUsername] = useState(adminUsername ?? '');
   const [password, setPassword] = useState('');
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  // Sección reset 2FA
   const [resetPassword, setResetPassword] = useState('');
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState(false);
@@ -42,7 +40,6 @@ export function MyProfilePage() {
       await adminsApi.updateSelf(payload);
       setProfileSuccess(true);
       setPassword('');
-      // Refrescamos tokens para que el nuevo username quede en el store
       if (accessToken && refreshToken) setTokens(accessToken, refreshToken);
     } catch (err) {
       const axiosError = err as { response?: { data?: { message?: string } } };
@@ -70,100 +67,107 @@ export function MyProfilePage() {
   };
 
   return (
-    <Box>
+    <Box maw={480}>
       <Title order={2} mb={4}>Mi perfil</Title>
-      <Text c="dimmed" size="sm" mb="xl">Editá tu usuario y contraseña.</Text>
-
-      {/* ── Sección perfil ── */}
-      <Card withBorder radius="md" p="xl" maw={420} mb="xl">
-        {profileError && (
-          <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">{profileError}</Alert>
-        )}
-        {profileSuccess && (
-          <Alert icon={<IconCheck size={16} />} color="green" mb="md">
-            Cambios guardados correctamente.
-          </Alert>
-        )}
-        <form onSubmit={(e) => void handleProfileSubmit(e)}>
-          <TextInput
-            label="Usuario"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            mb="sm"
-            required
-            minLength={3}
-          />
-          <PasswordInput
-            label="Nueva contraseña (dejá vacío para no cambiar)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            mb="lg"
-            minLength={8}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            loading={profileLoading}
-            style={{ background: '#f5a705', color: '#1a1200' }}
-          >
-            Guardar cambios
-          </Button>
-        </form>
-      </Card>
-
-      {/* ── Sección reset 2FA ── */}
-      <Title order={3} mb={4}>Autenticación de dos factores</Title>
-      <Text c="dimmed" size="sm" mb="lg">
-        Si tu código QR o secret TOTP se vio comprometido, podés resetear el 2FA.
-        El próximo login te pedirá configurarlo de nuevo con un nuevo QR.
+      <Text c="dimmed" size="sm" mb="xl">
+        Hola, <strong>{adminUsername}</strong>. Desde acá podés actualizar tus datos y gestionar tu autenticador.
       </Text>
 
-      <Card withBorder radius="md" p="xl" maw={420}>
-        {resetError && (
-          <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">{resetError}</Alert>
-        )}
-        {resetSuccess && (
-          <Alert icon={<IconCheck size={16} />} color="green" mb="md">
-            2FA reseteado correctamente. El próximo login te pedirá configurarlo de nuevo.
-          </Alert>
-        )}
+      <Tabs defaultValue="perfil" variant="outline" radius="md">
+        <Tabs.List mb="lg">
+          <Tabs.Tab value="perfil" leftSection={<IconUser size={14} />}>
+            Datos personales
+          </Tabs.Tab>
+          <Tabs.Tab value="2fa" leftSection={<IconShieldOff size={14} />}>
+            Autenticador 2FA
+          </Tabs.Tab>
+        </Tabs.List>
 
-        <Alert color="yellow" mb="md" radius="md">
-          <Text size="sm">
-            Al resetear el 2FA, tu sesión actual sigue activa. La próxima vez que inicies sesión
-            deberás escanear un nuevo QR con tu autenticador.
-          </Text>
-        </Alert>
+        {/* ── Tab: Datos personales ── */}
+        <Tabs.Panel value="perfil">
+          <Paper withBorder radius="md" p="lg">
+            {profileError && (
+              <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md" radius="md">
+                {profileError}
+              </Alert>
+            )}
+            {profileSuccess && (
+              <Alert icon={<IconCheck size={16} />} color="green" mb="md" radius="md">
+                Cambios guardados correctamente.
+              </Alert>
+            )}
+            <form onSubmit={(e) => void handleProfileSubmit(e)}>
+              <TextInput
+                label="Usuario"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                mb="sm"
+                required
+                minLength={3}
+              />
+              <PasswordInput
+                label="Nueva contraseña"
+                description="Dejá vacío si no querés cambiarla."
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                mb="lg"
+                minLength={8}
+              />
+              <Button
+                type="submit"
+                fullWidth
+                loading={profileLoading}
+                style={{ background: '#f5a705', color: '#1a1200' }}
+              >
+                Guardar cambios
+              </Button>
+            </form>
+          </Paper>
+        </Tabs.Panel>
 
-        <form onSubmit={(e) => void handleReset2fa(e)}>
-          <PasswordInput
-            label="Confirmá tu contraseña actual"
-            placeholder="••••••••"
-            value={resetPassword}
-            onChange={(e) => setResetPassword(e.target.value)}
-            mb="lg"
-            required
-            minLength={8}
-            description="Requerida para confirmar tu identidad antes de resetear el 2FA."
-          />
-          <Button
-            type="submit"
-            fullWidth
-            loading={resetLoading}
-            color="red"
-            variant="light"
-            leftSection={<IconShieldOff size={16} />}
-          >
-            Resetear autenticador 2FA
-          </Button>
-        </form>
+        {/* ── Tab: Reset 2FA ── */}
+        <Tabs.Panel value="2fa">
+          <Paper withBorder radius="md" p="lg">
+            <Text size="sm" c="dimmed" mb="lg">
+              Si tu secret TOTP se vio comprometido, reseteá el autenticador. El próximo login te pedirá vincular uno nuevo con un QR fresco.
+            </Text>
 
-        <Divider my="md" />
-        <Text size="xs" c="dimmed">
-          Si solo querés actualizar tu contraseña, usá el formulario de arriba.
-          El reset del 2FA no afecta tu contraseña actual.
-        </Text>
-      </Card>
+            {resetError && (
+              <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md" radius="md">
+                {resetError}
+              </Alert>
+            )}
+            {resetSuccess && (
+              <Alert icon={<IconCheck size={16} />} color="green" mb="md" radius="md">
+                Autenticador reseteado. El próximo login te pedirá configurarlo de nuevo.
+              </Alert>
+            )}
+
+            <form onSubmit={(e) => void handleReset2fa(e)}>
+              <PasswordInput
+                label="Confirmá tu contraseña actual"
+                description="Necesaria para confirmar tu identidad."
+                placeholder="••••••••"
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+                mb="lg"
+                required
+                minLength={8}
+              />
+              <Button
+                type="submit"
+                fullWidth
+                loading={resetLoading}
+                color="red"
+                variant="light"
+                leftSection={<IconShieldOff size={16} />}
+              >
+                Resetear autenticador 2FA
+              </Button>
+            </form>
+          </Paper>
+        </Tabs.Panel>
+      </Tabs>
     </Box>
   );
 }

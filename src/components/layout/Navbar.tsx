@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   Stack, Text, UnstyledButton, Group, Box, Divider, Image, Loader,
 } from '@mantine/core';
@@ -19,9 +19,13 @@ interface NavItemProps {
 }
 
 function NavItem({ to, label, icon: Icon, indent }: NavItemProps) {
+  const location = useLocation();
+  // Comparación exacta para evitar que rutas padre marquen rutas hija
+  const isActive = location.pathname === to;
+
   return (
     <NavLink to={to}>
-      {({ isActive }) => (
+      {() => (
         <UnstyledButton
           w="100%"
           px="sm"

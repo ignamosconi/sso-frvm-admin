@@ -135,6 +135,7 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         refreshToken: state.refreshToken,
+        pendingToken: state.pendingToken,   // persiste para sobrevivir re-renders
         adminId: state.adminId,
         adminUsername: state.adminUsername,
         // isAuthenticated NO se persiste — se deriva del bootstrap al recargar

@@ -182,7 +182,6 @@ export function ClientsPage() {
   const [secretModalMode, setSecretModalMode] = useState<'created' | 'regenerated'>('created');
 
   // Modal email — solo disponible desde el modal de secret
-  const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [emailAddress, setEmailAddress] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -373,15 +372,6 @@ export function ClientsPage() {
   };
 
   // ── Enviar credenciales por email ──────────────────────────────────────────
-
-  // El email solo se puede enviar desde el modal de secret (donde tenemos el plainSecret)
-  const openEmailFromSecret = () => {
-    setEmailAddress('');
-    setEmailError(null);
-    setEmailSuccess(false);
-    setEmailModalOpen(true);
-  };
-
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!secretModalData) return;
@@ -606,43 +596,27 @@ export function ClientsPage() {
         </Group>
       </Modal>
 
-      {/* ── Modal secret (muestra plainSecret una sola vez) ── */}
+      {/* ── Modal secret ── */}
       <Modal
         opened={secretModalOpen}
-        onClose={() => setSecretModalOpen(false)}
-        title={secretModalMode === 'created' ? 'Cliente creado — guardá el secret' : 'Secret regenerado — guardá el nuevo secret'}
+        onClose={() => { /* bloqueado hasta enviar */ }}
+        title={secretModalMode === 'created' ? 'Cliente creado' : 'Secret regenerado'}
         centered
         size="md"
         closeOnClickOutside={false}
         closeOnEscape={false}
+        withCloseButton={false}
       >
         <Alert color="orange" mb="md" radius="md">
           <Text size="sm" fw={500}>
-            Este es el único momento en que podés ver el Client Secret.
-            Una vez que cierres esta ventana, no podrás recuperarlo.
+            El Client Secret fue generado. Por seguridad, el admin no lo ve directamente —
+            envialo al desarrollador por email. El destinatario recibirá un link de un solo
+            uso válido por 24 horas con sus credenciales.
           </Text>
         </Alert>
 
-        {secretModalData && (
-          <Stack gap="sm" mb="lg">
-            <Box>
-              <Text size="xs" c="dimmed" mb={4}>Client ID</Text>
-              <TruncatedCopy value={String(secretModalData.id)} maxWidth={380} />
-            </Box>
-            <Box>
-              <Text size="xs" c="dimmed" mb={4}>Client Secret</Text>
-              <TruncatedCopy value={secretModalData.plainSecret} maxWidth={380} />
-            </Box>
-          </Stack>
-        )}
-
-        <Divider mb="md" />
-
         {!emailSuccess ? (
           <>
-            <Text size="sm" fw={500} mb="xs">
-              ¿Querés enviar las credenciales por email al desarrollador?
-            </Text>
             {emailError && (
               <Alert icon={<IconAlertCircle size={16} />} color="red" mb="sm" radius="md">
                 {emailError}
@@ -650,66 +624,37 @@ export function ClientsPage() {
             )}
             <form onSubmit={(e) => void handleSendEmail(e)}>
               <TextInput
+                label="Email del desarrollador"
                 placeholder="desarrollador@frvm.utn.edu.ar"
                 value={emailAddress}
                 onChange={(e) => setEmailAddress(e.target.value)}
                 type="email"
-                mb="sm"
+                mb="md"
+                required
+                data-autofocus
               />
-              <Group gap="sm">
-                <Button
-                  type="submit"
-                  leftSection={<IconMail size={14} />}
-                  loading={emailLoading}
-                  disabled={!emailAddress}
-                  variant="light"
-                  color="blue"
-                >
-                  Enviar por email
-                </Button>
-                <Button
-                  variant="subtle"
-                  onClick={() => openEmailFromSecret()}
-                >
-                  Omitir
-                </Button>
-              </Group>
+              <Button
+                type="submit"
+                fullWidth
+                leftSection={<IconMail size={14} />}
+                loading={emailLoading}
+                style={{ background: '#f5a705', color: '#1a1200' }}
+              >
+                Enviar credenciales por email
+              </Button>
             </form>
           </>
         ) : (
-          <Alert icon={<IconCheck size={16} />} color="green" mb="sm" radius="md">
-            Credenciales enviadas correctamente a <strong>{emailAddress}</strong>.
-            El destinatario recibirá un link de un solo uso válido por 24 horas.
-          </Alert>
+          <>
+            <Alert icon={<IconCheck size={16} />} color="green" mb="md" radius="md">
+              Credenciales enviadas correctamente a <strong>{emailAddress}</strong>.
+              El destinatario recibirá un link de un solo uso válido por 24 horas.
+            </Alert>
+            <Button fullWidth variant="light" onClick={() => setSecretModalOpen(false)}>
+              Cerrar
+            </Button>
+          </>
         )}
-
-        <Button
-          fullWidth
-          mt="md"
-          variant="light"
-          onClick={() => setSecretModalOpen(false)}
-        >
-          Ya guardé el secret, cerrar
-        </Button>
-      </Modal>
-
-      {/* ── Modal email standalone (desde el botón de email en la card) ── */}
-      <Modal
-        opened={emailModalOpen}
-        onClose={() => setEmailModalOpen(false)}
-        title="Enviar credenciales por email"
-        centered
-        size="sm"
-      >
-        <Alert color="yellow" mb="md" radius="md">
-          <Text size="sm">
-            Para enviar las credenciales actualizadas, regenerá el secret primero.
-            El email incluye un link de un solo uso con el secret más reciente.
-          </Text>
-        </Alert>
-        <Button fullWidth onClick={() => setEmailModalOpen(false)}>
-          Entendido
-        </Button>
       </Modal>
     </Box>
   );
