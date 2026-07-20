@@ -132,19 +132,34 @@ export function FaqsPage() {
                     {`GET ${ssoUrl}/sso/me\nAuthorization: Bearer ACCESS_TOKEN`}
                   </Code>
                 </List.Item>
+
                 <List.Item>
-                  <Text size="sm" fw={500}>5. Renovar el access_token cuando expire (15 minutos)</Text>
+                  <Text size="sm" fw={500}>5. Renovar el access_token cuando expire (cada 15 minutos)</Text>
                   <Code block mt={4}>
-                    {`POST ${ssoUrl}/sso/refresh\n{ "refresh_token": "TU_REFRESH_TOKEN" }`}
+                    {`POST ${ssoUrl}/sso/refresh\n{ "refresh_token": "TU_REFRESH_TOKEN" }\n\n// Respuesta: nuevo access_token Y nuevo refresh_token\n// IMPORTANTE: reemplazá AMBOS tokens almacenados\n// El refresh_token anterior queda inválido tras el canje`}
                   </Code>
                 </List.Item>
                 <List.Item>
-                  <Text size="sm" fw={500}>6. Cerrar sesión del alumno</Text>
+                  <Text size="sm" fw={500}>6. Cerrar sesión del alumno voluntariamente</Text>
                   <Code block mt={4}>
-                    {`POST ${ssoUrl}/sso/logout\n{ "refresh_token": "TU_REFRESH_TOKEN" }`}
+                    {`POST ${ssoUrl}/sso/logout\n{ "refresh_token": "TU_REFRESH_TOKEN" }\n\n// Además: eliminá los tokens de sessionStorage en tu app`}
                   </Code>
                 </List.Item>
+
               </List>
+
+              <Alert color="blue" mt="md" radius="md">
+                <Text size="sm" fw={500} mb={4}>Gestión de sesión</Text>
+                <Text size="sm">La sesión del alumno finaliza si ocurre cualquiera de estas condiciones:</Text>
+                <List size="sm" mt={4} spacing={2}>
+                  <List.Item>Usar sessionStorage, no localstorage. Así, si se cierra la pestaña, se borran las credenciales.</List.Item>
+                  <List.Item>Hace logout → tokens revocados en el servidor</List.Item>
+                  <List.Item>Inactividad de 8 horas sin usar el refresh_token</List.Item>
+                  <List.Item>Límite absoluto de 3 días desde el primer login</List.Item>
+                  <List.Item>Reutilización de un refresh_token ya usado → familia completa revocada</List.Item>
+                </List>
+              </Alert>
+
             </Accordion.Panel>
           </Accordion.Item>
 
