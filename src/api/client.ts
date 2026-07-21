@@ -7,28 +7,63 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Inyectar el access token en cada request
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
+// Mutex para serializar los refreshes concurrentes.
+// Si varios requests fallan con 401 al mismo tiempo, solo uno hace el refresh;
+// los demás esperan y reusan el nuevo access token.
+let refreshPromise: Promise<void> | null = null;
+
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
+  async (error: unknown) => {
+    if (!axios.isAxiosError(error)) return Promise.reject(error);
+
+    const originalRequest = error.config as typeof error.config & { _retry?: boolean };
+
+    const isAuthRequest =
+      originalRequest?.url?.includes('/admin/auth/login') ||
+      originalRequest?.url?.includes('/admin/auth/2fa/setup') ||
+      originalRequest?.url?.includes('/admin/auth/2fa/confirm') ||
+      originalRequest?.url?.includes('/admin/auth/2fa/validate') ||
+      originalRequest?.url?.includes('/admin/auth/refresh');
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !isAuthRequest
+    ) {
       originalRequest._retry = true;
+
       try {
-        await useAuthStore.getState().refresh();
+        if (!refreshPromise) {
+          refreshPromise = useAuthStore.getState().refresh().finally(() => {
+            refreshPromise = null;
+          });
+        }
+
+        await refreshPromise;
+
         const token = useAuthStore.getState().accessToken;
-        originalRequest.headers.Authorization = `Bearer ${token}`;
+
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+        }
+
         return apiClient(originalRequest);
       } catch {
-        useAuthStore.getState().logout();
+        await useAuthStore.getState().logout();
         window.location.href = '/login';
+        return Promise.reject(error);
       }
     }
+
     return Promise.reject(error);
   }
 );

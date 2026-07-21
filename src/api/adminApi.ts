@@ -2,10 +2,12 @@ import { apiClient } from './client';
 import {
   AdminResponse,
   OAuthClientResponse,
+  OAuthClientCreatedResponse,
   CreateAdminPayload,
   UpdateAdminPayload,
   CreateOAuthClientPayload,
   UpdateOAuthClientPayload,
+  SendCredentialsEmailPayload,
 } from '@/types/api.types';
 
 export const adminsApi = {
@@ -40,8 +42,14 @@ export const oauthClientsApi = {
     return data;
   },
 
-  create: async (payload: CreateOAuthClientPayload): Promise<OAuthClientResponse> => {
-    const { data } = await apiClient.post<OAuthClientResponse>('/admin/clients', payload);
+  findOne: async (id: number): Promise<OAuthClientResponse> => {
+    const { data } = await apiClient.get<OAuthClientResponse>(`/admin/clients/${id}`);
+    return data;
+  },
+
+  // Devuelve OAuthClientCreatedResponse — incluye plainSecret una sola vez
+  create: async (payload: CreateOAuthClientPayload): Promise<OAuthClientCreatedResponse> => {
+    const { data } = await apiClient.post<OAuthClientCreatedResponse>('/admin/clients', payload);
     return data;
   },
 
@@ -54,12 +62,26 @@ export const oauthClientsApi = {
     await apiClient.delete(`/admin/clients/${id}`);
   },
 
-  regenerateSecret: async (id: number): Promise<OAuthClientResponse> => {
-    const { data } = await apiClient.post<OAuthClientResponse>(`/admin/clients/${id}/regenerate-secret`);
+  // Devuelve OAuthClientCreatedResponse — incluye plainSecret una sola vez
+  regenerateSecret: async (id: number): Promise<OAuthClientCreatedResponse> => {
+    const { data } = await apiClient.post<OAuthClientCreatedResponse>(
+      `/admin/clients/${id}/regenerate-secret`,
+    );
     return data;
   },
 
-  sendCredentialsByEmail: async (id: number, to: string): Promise<void> => {
-    await apiClient.post(`/admin/clients/${id}/send-credentials`, { to });
+  // plainSecret debe pasarse desde la respuesta de create o regenerateSecret
+  sendCredentialsByEmail: async (id: number, payload: SendCredentialsEmailPayload): Promise<void> => {
+    await apiClient.post(`/admin/clients/${id}/send-credentials`, payload);
+  },
+
+  suspend: async (id: number): Promise<OAuthClientResponse> => {
+    const { data } = await apiClient.patch<OAuthClientResponse>(`/admin/clients/${id}/suspend`);
+    return data;
+  },
+
+  activate: async (id: number): Promise<OAuthClientResponse> => {
+    const { data } = await apiClient.patch<OAuthClientResponse>(`/admin/clients/${id}/activate`);
+    return data;
   },
 };

@@ -7,6 +7,7 @@ import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import './index.css';
 import App from './App';
+import { useAuthStore } from '@/store/authStore';
 
 const theme = createTheme({
   fontFamily: 'Inter, sans-serif',
@@ -20,13 +21,17 @@ const theme = createTheme({
   },
 });
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <MantineProvider theme={theme} defaultColorScheme="dark">
-      <ModalsProvider>
-        <Notifications />
-        <App />
-      </ModalsProvider>
-    </MantineProvider>
-  </StrictMode>,
-);
+// Intentar recuperar sesión antes de montar React
+// ProtectedRoute usará isBootstrapping para mostrar un loader mientras tanto
+void useAuthStore.getState().bootstrap().then(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <MantineProvider theme={theme} defaultColorScheme="dark">
+        <ModalsProvider>
+          <Notifications />
+          <App />
+        </ModalsProvider>
+      </MantineProvider>
+    </StrictMode>,
+  );
+});
