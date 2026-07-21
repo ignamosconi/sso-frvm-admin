@@ -1,80 +1,177 @@
-# SSO FRVM - Panel de administración
+# SSO FRVM Admin - Frontend
 
-Panel de administración para el servidor OAuth 2.0 [SSO FRVM](https://github.com/ignamosconi/sso-frvm).
-
-Permite a los administradores gestionar los clientes OAuth registrados y los usuarios con acceso al panel, sin necesidad de interactuar directamente con la API.
+Panel de administración web para el sistema SSO de UTN FRVM. Permite gestionar administradores del sistema, registrar y administrar aplicaciones cliente OAuth, y monitorear el estado de los servicios.
 
 
-## Tecnologías
+## ¿Qué hace este repositorio?
 
-- **React + TypeScript** - biblioteca de UI
-- **Vite** - bundler y servidor de desarrollo
-- **Mantine** - componentes de UI con soporte nativo de modo claro/oscuro
-- **Zustand** - estado global de autenticación
-- **Axios** - cliente HTTP
-- **React Router** - navegación
+Provee la interfaz gráfica para que los administradores del SSO puedan:
+
+- Iniciar sesión con autenticación de dos factores (TOTP) obligatoria.
+- Gestionar otros administradores del sistema (crear, listar, eliminar).
+- Registrar aplicaciones cliente OAuth (crear, editar, suspender, activar, eliminar).
+- Regenerar client secrets y enviarlos al desarrollador por email mediante un link de un solo uso.
+- Monitorear en tiempo real el estado del backend SSO y del servicio de Autogestión UTN.
+- Actualizar su propio perfil y resetear el autenticador 2FA.
+
+## Tecnologías utilizadas
+
+| Categoría | Tecnología |
+|-----------|-----------|
+| Framework | React 19 |
+| Lenguaje | TypeScript 6 |
+| Build tool | Vite 8 |
+| UI | Mantine 9 |
+| Íconos | Tabler Icons React |
+| HTTP | Axios |
+| Routing | React Router DOM 7 |
+| Estado global | Zustand 5 |
+| Tests | Vitest + Testing Library |
+| Lint | oxlint |
 
 
 ## Requisitos previos
 
-- Node.js
-- El backend [sso-frvm](https://github.com/ignamosconi/sso-frvm) corriendo y accesible
+- Node.js 22+
+- El backend `sso-frvm` corriendo y accesible
 
 
-## Instalación
+## Instalación y configuración
+
+### 1. Clonar el repositorio
 
 ```bash
-# 1. Clonar el repositorio
 git clone https://github.com/ignamosconi/sso-frvm-admin.git
 cd sso-frvm-admin
+```
 
-# 2. Instalar dependencias
+### 2. Instalar dependencias
+
+```bash
 npm install
+```
 
-# 3. Configurar variables de entorno
+### 3. Configurar variables de entorno
+
+```bash
 cp .env.example .env
-# Editá .env y verificá que esté completo
 ```
 
-### Variables de entorno
+Editá el `.env` con los valores correctos:
 
-| Variable | Descripción | Valor por defecto |
-|---|---|---|
-| `VITE_API_BASE_URL` | URL base del backend SSO FRVM | `http://localhost:3000` |
-| `AUTOGESTION_URL` | URL del endpoint público de autogestión UTN FRVM | `https://webservice.frvm.utn.edu.ar/autogestion` |
+| Variable | Descripción | Ejemplo |
+|----------|-------------|---------|
+| `VITE_API_BASE_URL` | URL base del backend SSO, sin barra final. Se embebe en el bundle de producción. | `http://localhost:3000` |
+| `VITE_AUTOGESTION_URL` | URL pública del webservice de Autogestión UTN. Usada para el health check del dashboard. | `https://webservice.frvm.utn.edu.ar/autogestion` |
+
+> Las variables con prefijo `VITE_` son públicas y quedan embebidas en el bundle de producción. No pongas secretos acá.
 
 
-## Desarrollo
+## Comandos disponibles
 
 ```bash
+# Levantar en modo desarrollo con hot reload
 npm run dev
+
+# Build de producción (TypeScript + Vite)
+npm run build
+
+# Preview del build de producción localmente
+npm run preview
+
+# Lint
+npm run lint
+
+# Correr tests unitarios una vez
+npm run test
+
+# Correr tests en modo watch (re-corre al guardar)
+npm run test:watch
+
+# Correr tests con reporte de cobertura
+npm run test:cov
 ```
 
-El panel queda disponible en `http://localhost:5173`.
+## Flujo de autenticación
+
+El login está dividido en dos pasos obligatorios:
+
+```
+Paso 1: POST /admin/auth/login
+  → Credenciales válidas → pending_token
+
+  Si requires_2fa_setup = true (primera vez):
+    Paso 2a: POST /admin/auth/2fa/setup  → QR + manualEntrySecret
+    Paso 3a: POST /admin/auth/2fa/confirm → access_token + refresh_token
+
+  Si requires_2fa_setup = false (logins posteriores):
+    Paso 2b: POST /admin/auth/2fa/validate → access_token + refresh_token
+```
+
+### Bootstrap de sesión
+
+Al cargar la app, si existe un `refreshToken` en `sessionStorage`, el sistema intenta recuperar la sesión automáticamente antes de renderizar cualquier UI protegida. Si el refresh falla, redirige al login sin mostrar contenido protegido.
+
+### Almacenamiento de tokens
+
+| Token | Almacenamiento | Motivo |
+|-------|---------------|--------|
+| `accessToken` | Memoria (Zustand) | No persiste, se pierde al cerrar el tab |
+| `refreshToken` | `sessionStorage` | Persiste entre recargas, se borra al cerrar el tab |
+| `pendingToken` | `sessionStorage` | Persiste durante el flujo 2FA para sobrevivir re-renders |
+
+> `sessionStorage` fue elegido sobre `localStorage` porque no persiste entre tabs ni al cerrar el navegador, reduciendo la ventana de exposición del refresh token.
+
+### Refresh automático y mutex
+
+El interceptor de Axios detecta respuestas `401` e intenta renovar el access token automáticamente. Un mutex garantiza que múltiples requests concurrentes que fallen con `401` al mismo tiempo solo disparen **un único refresh**, evitando race conditions.
+
+## Gestión de clientes OAuth
+
+### Crear un cliente
+
+Al crear un cliente, el backend genera un `clientSecret` hasheado. El flujo del panel es:
+
+1. El admin completa nombre y redirect URIs.
+2. El panel recibe la respuesta con el `plainSecret`.
+3. Aparece un modal que pide el email del desarrollador.
+4. El panel envía el secret al backend, que genera un **link de un solo uso** cifrado con AES-256-GCM, válido 24 horas.
+5. El desarrollador abre el link y ve sus credenciales completas.
+6. El link queda inválido tras el primer acceso.
+
+> El admin nunca ve el `plainSecret` directamente, envía un email de credenciales automáticamente. Esto reduce la superficie de exposición del secret.
+
+### Suspender / activar una app
+
+Las apps pueden suspenderse temporalmente sin eliminarse. Una app suspendida no puede autenticar usuarios, ya que el backend rechaza sus requests con `401`. Las apps suspendidas se muestran con borde rojo y badge "Suspendido" en la lista.
 
 
-## Producción
+## Tests
+
+Los tests cubren la lógica de autenticación y el store:
 
 ```bash
-npm run build
+# Correr todos los tests
+npm run test
 ```
 
-El output queda en la carpeta `dist/`. Servila con cualquier servidor estático (nginx, Apache, o el propio NestJS si querés consolidar todo en un mismo servidor).
+Los archivos de test están junto a los archivos que testean:
+- `src/store/authStore.test.ts`: lógica del store (setTokens, logout, refresh, bootstrap)
+- `src/hooks/useAuth.test.ts`: flujo completo de 2FA (loginStep1, confirm2fa, validate2fa, reset2fa)
 
 
-## Funcionalidades
+## CI - GitHub Actions
 
-**Autenticación de administradores**
-Los administradores tienen credenciales propias, independientes de las credenciales de autogestión UTN. El sistema emite access tokens y refresh tokens con renovación automática.
+El pipeline corre automáticamente en cada PR y push a `main` y `develop`:
 
-**Gestión de clientes OAuth**
-Registro de apps que pueden usar el SSO, con soporte para múltiples redirect URIs por cliente (hasta 5). El sistema genera automáticamente el `client_secret` al crear un cliente. Desde el panel podés regenerar el secret y enviar las credenciales completas al desarrollador por email, incluyendo instrucciones de integración.
+1. Lint (`oxlint`)
+2. Build de producción
+3. Tests unitarios con cobertura
 
-**Gestión de administradores**
-Cada admin puede editar únicamente su propio usuario y contraseña. Cualquier admin puede crear nuevos admins o eliminar existentes, con la restricción de que el sistema no permite eliminar el último administrador para evitar quedar sin acceso.
+El archivo de configuración está en `.github/workflows/ci-frontend.yml`.
 
-**Dashboard**
-Muestra el estado en tiempo real del servidor SSO y del webservice de autogestión de UTN FRVM, con verificación automática cada 30 segundos y botón de retry manual.
+## Backend relacionado
 
-**FAQs**
-Guía rápida para el personal de la oficina con instrucciones para levantar el sistema, registrar nuevas apps y crear administradores. También incluye una sección para desarrolladores con el flujo de integración completo.
+El backend SSO está en [github.com/ignamosconi/sso-frvm](https://github.com/ignamosconi/sso-frvm).
+
+Para levantar el backend localmente seguí las instrucciones de su README. El panel no funciona sin el backend corriendo.
