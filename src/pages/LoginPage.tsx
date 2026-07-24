@@ -70,6 +70,22 @@ export function LoginPage() {
     }, 50);
   };
 
+  // Extrae el mensaje de error de una respuesta Axios
+  const extractErrorMessage = (err: unknown): string => {
+    const axiosErr = err as { response?: { data?: { message?: string } } };
+    return axiosErr?.response?.data?.message ?? '';
+  };
+
+  // Errores que invalidan el challenge actual — el usuario debe volver
+  // a ingresar sus credenciales para obtener un nuevo pending token.
+  const isFatalAuthError = (message: string): boolean => {
+    return (
+      message.includes('Demasiados intentos fallidos') ||
+      message.includes('Token de sesión pendiente inválido o expirado') ||
+      message.includes('Too Many Requests')
+    );
+  };
+
   // Redirigir si ya está autenticado
   useEffect(() => {
     if (isAuthenticated) navigate('/dashboard', { replace: true });
@@ -121,8 +137,6 @@ export function LoginPage() {
   // ── Paso 2a: confirmar primer código TOTP (setup) ─────────────────────────
   const handleConfirm2fa = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Usar el confirm_pending_token que devolvió /2fa/setup — el token original
-    // ya fue consumido por el backend y no puede reutilizarse.
     if (!setupData?.confirm_pending_token) {
       setError('La sesión expiró. Volvé a ingresar tus credenciales.');
       setStep('credentials');
@@ -132,9 +146,15 @@ export function LoginPage() {
     setLoading(true);
     try {
       await confirm2fa(setupData.confirm_pending_token, totpCode);
-    } catch {
-      setError('Código incorrecto. Verificá que el autenticador esté sincronizado e intentá de nuevo.');
-      resetTotpInput();
+    } catch (err) {
+      const message = extractErrorMessage(err);
+      if (isFatalAuthError(message)) {
+        goBackToCredentials();
+        setError(message);
+      } else {
+        setError('Código incorrecto. Verificá que el autenticador esté sincronizado e intentá de nuevo.');
+        resetTotpInput();
+      }
     } finally {
       setLoading(false);
     }
@@ -152,10 +172,15 @@ export function LoginPage() {
     setLoading(true);
     try {
       await validate2fa(pendingToken, totpCode);
-      // validate2fa llama setTokens → isAuthenticated = true → useEffect navega a /dashboard
-    } catch {
-      setError('Código incorrecto. Intentá de nuevo con el código actual de tu autenticador.');
-      resetTotpInput();
+    } catch (err) {
+      const message = extractErrorMessage(err);
+      if (isFatalAuthError(message)) {
+        goBackToCredentials();
+        setError(message);
+      } else {
+        setError('Código incorrecto. Intentá de nuevo con el código actual de tu autenticador.');
+        resetTotpInput();
+      }
     } finally {
       setLoading(false);
     }
@@ -166,6 +191,8 @@ export function LoginPage() {
     setTotpCode('');
     setSetupData(null);
     setError(null);
+    setUsername('');
+    setPassword('');
   };
 
   const isSetupStep = step === 'setup_2fa';
