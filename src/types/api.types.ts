@@ -17,8 +17,8 @@ export interface AdminLoginResponse {
 export interface Admin2faSetupResponse {
   qrCodeDataUrl: string;
   manualEntrySecret: string;
+  confirm_pending_token: string;        // Nuevo pending token con purpose 2fa-confirm, emitido por el backend después de consumir el token de setup. Usarlo en /2fa/confirm.
 }
-
 // ── Admins ───────────────────────────────────────────────────────────────────
 
 export interface AdminResponse {
@@ -77,5 +77,5 @@ export interface UpdateOAuthClientPayload {
 // plainSecret es obligatorio — viene del create o regenerate inmediatamente antes
 export interface SendCredentialsEmailPayload {
   to: string;
-  plainSecret: string;
+  // plainSecret eliminado: el backend lo recupera de Redis. El frontend solo necesita indicar el destinatario.
 }
