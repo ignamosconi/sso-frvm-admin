@@ -101,8 +101,8 @@ Paso 1: POST /admin/auth/login
   → Credenciales válidas → pending_token
 
   Si requires_2fa_setup = true (primera vez):
-    Paso 2a: POST /admin/auth/2fa/setup  → QR + manualEntrySecret
-    Paso 3a: POST /admin/auth/2fa/confirm → access_token + refresh_token
+    Paso 2a: POST /admin/auth/2fa/setup  → QR + manualEntrySecret + confirm_pending_token
+    Paso 3a: POST /admin/auth/2fa/confirm (con confirm_pending_token) → access_token + refresh_token
 
   Si requires_2fa_setup = false (logins posteriores):
     Paso 2b: POST /admin/auth/2fa/validate → access_token + refresh_token
@@ -118,7 +118,7 @@ Al cargar la app, si existe un `refreshToken` en `sessionStorage`, el sistema in
 |-------|---------------|--------|
 | `accessToken` | Memoria (Zustand) | No persiste, se pierde al cerrar el tab |
 | `refreshToken` | `sessionStorage` | Persiste entre recargas, se borra al cerrar el tab |
-| `pendingToken` | `sessionStorage` | Persiste durante el flujo 2FA para sobrevivir re-renders |
+| `pendingToken` | Memoria (Zustand) | Token de vida corta, no necesita sobrevivir recargas |
 
 > `sessionStorage` fue elegido sobre `localStorage` porque no persiste entre tabs ni al cerrar el navegador, reduciendo la ventana de exposición del refresh token.
 

@@ -7,7 +7,10 @@ interface Props {
 }
 
 export function ProtectedRoute({ children }: Props) {
-  const { isAuthenticated, isBootstrapping } = useAuthStore();
+  // Verificar tanto isAuthenticated como la presencia del accessToken en memoria.
+  // isAuthenticated puede ser manipulado en sessionStorage, pero accessToken
+  // no se persiste — solo existe en memoria si el bootstrap lo obtuvo del servidor.
+  const { isAuthenticated, isBootstrapping, accessToken } = useAuthStore();
 
   // Mientras el bootstrap intenta recuperar la sesión desde sessionStorage,
   // mostramos un loader en lugar de redirigir al login prematuramente.
@@ -24,7 +27,7 @@ export function ProtectedRoute({ children }: Props) {
     );
   }
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated || !accessToken) return <Navigate to="/login" replace />;
 
   return <>{children}</>;
 }

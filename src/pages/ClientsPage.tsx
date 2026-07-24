@@ -378,9 +378,9 @@ export function ClientsPage() {
     setEmailError(null);
     setEmailLoading(true);
     try {
+      // plainSecret ya no se envía — el backend lo recupera de Redis.
       await oauthClientsApi.sendCredentialsByEmail(secretModalData.id, {
         to: emailAddress,
-        plainSecret: secretModalData.plainSecret,
       });
       setEmailSuccess(true);
     } catch (err) {
