@@ -121,7 +121,9 @@ export function LoginPage() {
   // ── Paso 2a: confirmar primer código TOTP (setup) ─────────────────────────
   const handleConfirm2fa = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pendingToken) {
+    // Usar el confirm_pending_token que devolvió /2fa/setup — el token original
+    // ya fue consumido por el backend y no puede reutilizarse.
+    if (!setupData?.confirm_pending_token) {
       setError('La sesión expiró. Volvé a ingresar tus credenciales.');
       setStep('credentials');
       return;
@@ -129,8 +131,7 @@ export function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await confirm2fa(pendingToken, totpCode);
-      // confirm2fa llama setTokens → isAuthenticated = true → useEffect navega a /dashboard
+      await confirm2fa(setupData.confirm_pending_token, totpCode);
     } catch {
       setError('Código incorrecto. Verificá que el autenticador esté sincronizado e intentá de nuevo.');
       resetTotpInput();
